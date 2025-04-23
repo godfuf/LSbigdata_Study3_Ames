@@ -1,0 +1,4 @@
+- source: group1.qmd
+  quarto-pub:
+    - id: f2dfaf4e-0dca-46b0-9b3a-0d428b684375
+      url: https://feeling.quarto.pub/feeling
