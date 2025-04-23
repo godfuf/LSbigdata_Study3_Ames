@@ -198,3 +198,5 @@ def plot_cat_dist(var):
 # 3개 변수 모두 보기
 for col in ['SaleType', 'MiscFeature', 'SaleCondition']:
     plot_cat_dist(col)
+
+
