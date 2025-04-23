@@ -200,3 +200,4 @@ for col in ['SaleType', 'MiscFeature', 'SaleCondition']:
     plot_cat_dist(col)
 
 
+# 야호
