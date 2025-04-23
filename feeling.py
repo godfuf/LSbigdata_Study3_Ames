@@ -29,3 +29,6 @@ ames = ames[ames['Price_per_sqft'].notnull()]  # 결측 제거
 
 # 결측치 간단 처리 (중요 변수 위주로만)-----------------논의 필요[차고, 벽난로, 석조 마감 면적]
 df.fillna({'GarageArea': 0, 'Fireplaces': 0, 'Mas Vnr Area': 0}, inplace=True)
+
+
+
