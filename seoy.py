@@ -16,6 +16,21 @@ df['house_age'] = df['YrSold'] - df['YearBuilt']
 df['neigh_avg'] = df.groupby('Neighborhood')['SalePrice'].transform('mean')
 
 
+# 조건 확인별 히스토그램
+
+# 산점도 + 평균선 함께 시각화
+plt.figure(figsize=(10, 6))
+sns.stripplot(data=df, x='price_level', y='amenities', jitter=True, palette='Set2', alpha=0.5)
+sns.pointplot(data=df, x='price_level', y='amenities', estimator='mean', color='black', markers='D', linestyles='--')
+
+plt.title('Amenities Count by Price Level (Scatter + Mean Line)')
+plt.xlabel('Price Level')
+plt.ylabel('Number of Amenities')
+plt.grid(True)
+plt.show()
+
+
+
 # 1. 고가/저가/중간 나누기
 df_ns = df.groupby('Neighborhood')['SalePrice'].mean()
 
@@ -64,81 +79,120 @@ high_df = df[df['price_level'] == 'High'].copy()
 mid_df = df[df['price_level'] == 'Mid'].copy()
 low_df = df[df['price_level'] == 'Low'].copy()
 
+#################### 편의시설 개수 시각화
+import matplotlib.pyplot as plt
+import seaborn as sns
+plt.figure(figsize=(18, 6))
+
+# High Price - 어메니티스 분포
+plt.subplot(1, 3, 1)
+sns.histplot(high_df['amenities'], kde=True, bins=10, color='blue')
+plt.title('High Price - Amenities Count Distribution')
+plt.xlabel('Number of Amenities')
+plt.ylabel('Frequency')
+
+# Mid Price - 어메니티스 분포
+plt.subplot(1, 3, 2)
+sns.histplot(mid_df['amenities'], kde=True, bins=10, color='orange')
+plt.title('Mid Price - Amenities Count Distribution')
+plt.xlabel('Number of Amenities')
+plt.ylabel('Frequency')
+
+# Low Price - 어메니티스 분포
+plt.subplot(1, 3, 3)
+sns.histplot(low_df['amenities'], kde=True, bins=10, color='green')
+plt.title('Low Price - Amenities Count Distribution')
+plt.xlabel('Number of Amenities')
+plt.ylabel('Frequency')
+
+plt.tight_layout()
+plt.show()
+
+
+###########################################
+
+
+# 세 그룹 프레임 나누기
+high_df = df[df['price_level'] == 'High'].copy()
+mid_df = df[df['price_level'] == 'Mid'].copy()
+low_df = df[df['price_level'] == 'Low'].copy()
+
+# 기준값들 (전체 df 기준으로 계산)
+qual_75 = df['OverallQual'].quantile(0.75)
+area_median = df['GrLivArea'].median()  # 이건 그대로 사용
+amenities_75 = df['amenities'].quantile(0.75)
+grlivarea_q1 = df['GrLivArea'].quantile(0.25)
+overallcond_q3 = df['OverallCond'].quantile(0.75)
+
+
+# OverallQual = 9
+# OverallCond = 6
+
+
+
 # High 가격대 조건
-high_df['flag_high_qual'] = (high_df['OverallQual'] < 8).astype(int)
-high_df['flag_high_area'] = (high_df['GrLivArea'] < df['GrLivArea'].median()).astype(int)
-high_df['flag_high_amenities'] = (high_df['amenities'] < 2).astype(int)
+high_df['flag_high_qual'] = (high_df['OverallQual'] < qual_75).astype(int)
+high_df['flag_high_area'] = (high_df['GrLivArea'] < area_median).astype(int)
+high_df['flag_high_amenities'] = (high_df['amenities'] < amenities_75).astype(int)
+high_df['flag_layout_mismatch'] = (
+    (high_df['GrLivArea'] < grlivarea_q1) &
+    ((high_df['FullBath'] + high_df['HalfBath']) >= 3)
+).astype(int)
+high_df['flag_good_condition'] = (
+    high_df['OverallCond'] >= overallcond_q3
+).astype(int)
 
 # Mid 가격대 조건
-mid_df['flag_mid_qual'] = (mid_df['OverallQual'] < 6).astype(int)
-mid_df['flag_mid_area'] = (mid_df['GrLivArea'] < df['GrLivArea'].median()).astype(int)
-mid_df['flag_mid_amenities'] = (mid_df['amenities'] < 2).astype(int)
+mid_df['flag_mid_qual'] = (mid_df['OverallQual'] < qual_75).astype(int)  # 약간 더 완화
+mid_df['flag_mid_area'] = (mid_df['GrLivArea'] < area_median).astype(int)
+mid_df['flag_mid_amenities'] = (mid_df['amenities'] < amenities_75).astype(int)
+mid_df['flag_layout_mismatch'] = (
+    (mid_df['GrLivArea'] < grlivarea_q1) &
+    ((mid_df['FullBath'] + mid_df['HalfBath']) >= 3)
+).astype(int)
+mid_df['flag_good_condition'] = (
+    mid_df['OverallCond'] >= overallcond_q3
+).astype(int)
+
 
 # Low 가격대 조건
-low_df['flag_low_qual'] = (low_df['OverallQual'] < 5).astype(int)
-low_df['flag_low_area'] = (low_df['GrLivArea'] < df['GrLivArea'].median()).astype(int)
-low_df['flag_low_amenities'] = (low_df['amenities'] < 2).astype(int)
+low_df['flag_low_qual'] = (low_df['OverallQual'] < qual_75).astype(int)
+low_df['flag_low_area'] = (low_df['GrLivArea'] < area_median).astype(int)
+low_df['flag_low_amenities'] = (low_df['amenities'] < amenities_75).astype(int)
+low_df['flag_layout_mismatch'] = (
+    (low_df['GrLivArea'] < grlivarea_q1) &
+    ((low_df['FullBath'] + low_df['HalfBath']) >= 3)
+).astype(int)
+low_df['flag_good_condition'] = (
+    low_df['OverallCond'] >= overallcond_q3
+).astype(int)
+
 
 high_df
 mid_df
 low_df
 
-high_df['suspicious_flag'] = high_df[['flag_high_qual', 'flag_high_area', 
-                                      'flag_high_amenities']].sum(axis=1)
+high_df['suspicious_flag'] = high_df[[
+    'flag_high_qual', 'flag_high_area', 'flag_high_amenities',
+    'flag_layout_mismatch', 'flag_good_condition'
+]].sum(axis=1)
 
-mid_df['suspicious_flag'] = mid_df[['flag_mid_qual', 'flag_mid_area',
-                                    'flag_mid_amenities' ]].sum(axis=1)
+mid_df['suspicious_flag'] = mid_df[[
+    'flag_mid_qual', 'flag_mid_area', 'flag_mid_amenities',
+    'flag_layout_mismatch', 'flag_good_condition'
+]].sum(axis=1)
 
-low_df['suspicious_flag'] = low_df[['flag_low_qual', 'flag_low_area',
-                                    'flag_low_amenities']].sum(axis=1)
+low_df['suspicious_flag'] = low_df[[
+    'flag_low_qual', 'flag_low_area', 'flag_low_amenities',
+    'flag_layout_mismatch', 'flag_good_condition'
+]].sum(axis=1)
 
 high_df
 mid_df
 low_df
 
-suspicious_h = high_df[high_df['suspicious_flag'] >= 3]
-suspicious_m = mid_df[mid_df['suspicious_flag'] >= 3]
-suspicious_l = low_df[low_df['suspicious_flag'] >= 3]
+suspicious_h = high_df[high_df['suspicious_flag'] >= 4]
+suspicious_m = mid_df[mid_df['suspicious_flag'] >= 4]
+suspicious_l = low_df[low_df['suspicious_flag'] >= 4]
 
-
-
-
-
-
-
-# 조건별 플래그 생성
-df['flag_cond1'] = ((df['price_level'] == 'High') &
-                    (df['OverallQual'] < 8)).astype(int)
-
-df['flag_cond2'] = ((df['price_level'] == 'Mid') &
-                    (df['OverallQual'] < 6)).astype(int)
-
-df['flag_cond2'] = ((df['price_level'] == 'Low') &
-                    (df['OverallQual'] < 5)).astype(int)
-
-df['flag_cond4'] = ((df['price_level'] == 'High') &
-                    (df['GrLivArea'] < df['GrLivArea'].median())).astype(int)
-
-df['flag_cond5'] = ((df['price_level'] == 'Mid') &
-                    (df['GrLivArea'] < df['GrLivArea'].median())).astype(int)
-
-df['flag_cond6'] = ((df['price_level'] == 'Low') &
-                    (df['GrLivArea'] < df['GrLivArea'].median())).astype(int)
-
-
-# 최종 suspicious 점수 계산
-df['suspicious_flag'] = df[['flag_cond1', 'flag_cond2', 'flag_cond3', 'flag_cond4', 'flag_cond5', 'flag_cond6']].sum(axis=1)
-
-# suspicious 점수가 2 이상인 매물 추출
-suspicious_listings = df[df['suspicious_flag'] >= 2]
-
-# 결과 출력
-cols_to_show = [
-    'PID', 'Neighborhood', 'SalePrice', 'GrLivArea', 'OverallQual', 'OverallCond', 
-    'YearBuilt', 'price_per_area', 'house_age',
-    'flag_cond1', 'flag_cond2', 'flag_cond3', 'flag_cond4', 'flag_cond5', 'flag_cond6',
-    'suspicious_flag'
-]
-
-print(suspicious_listings[cols_to_show].sort_values(by='suspicious_flag', ascending=False))
 
