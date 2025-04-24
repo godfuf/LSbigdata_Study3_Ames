@@ -5,7 +5,6 @@ format:
   dashboard:
     theme: sandstone
     scrolling: True
-    css: style.css
     logo: igotyou.png
     freeze: true
 --- 
