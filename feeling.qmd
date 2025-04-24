@@ -411,7 +411,7 @@ fig2.show();
 <span style="font-size: 25px;">
   ✔**OverallQual** : 지상층 면적 <br>
   ✔**OverallCond** : 리모델링 <br>
-  ✔**Amenities** : 방 밀도 (방수/면적)
+  ✔**Amenities** : 편의시설 개수
 </span>
 
 :::
@@ -1421,21 +1421,11 @@ fig8
 
 ```{python}
 
-import folium
-from IPython.display import display
-
 # 공통 허위매물만 추출 (점수제 + Ridge 회귀 모두 해당)
 common_df = df.loc[list(score_set & ridge_set)].copy()
 
 # 좌표 결측치 제거
 common_df1 = common_df.dropna(subset=["Latitude", "Longitude"])
-
-# 지도 중심 좌표 설정
-center_lat = common_df1["Latitude"].mean()
-center_lon = common_df1["Longitude"].mean()
-
-# folium 지도 객체 생성
-fig6 = folium.Map(location=[center_lat, center_lon], zoom_start=12)
 
 # price_level별 색상 지정
 color_map = {
@@ -1444,9 +1434,17 @@ color_map = {
     'High': 'red'
 }
 
-# 마커 추가
-for _, row in common_df1.iterrows():
-    popup_text = f"""
+# 지도 시각화
+fig = go.Figure(go.Scattermapbox(
+    lat=common_df1['Latitude'],
+    lon=common_df1['Longitude'],
+    mode='markers',
+    marker=dict(
+        size=10,
+        color=[color_map.get(level, 'gray') for level in common_df1['price_level']],
+        opacity=0.7
+    ),
+    text=common_df1.apply(lambda row: f"""
     <b>지역:</b> {row['Neighborhood']}<br>
     <b>매매가:</b> ${row['SalePrice']:,}<br>
     <b>지상면적:</b> {row['GrLivArea']} sqft<br>
@@ -1455,19 +1453,20 @@ for _, row in common_df1.iterrows():
     <b>편의시설 수:</b> {row['amenities']}<br>
     <b>리모델링 연도:</b> {row['YearRemodAdd']}<br>
     <b>점수제 점수:</b> {row['score']}
-    """
-    _ = folium.Marker(
-        location=[row['Latitude'], row['Longitude']],
-        popup=folium.Popup(popup_text, max_width=250),
-        icon=folium.Icon(
-            color=color_map.get(row['price_level'], 'gray'),
-            icon='exclamation-sign',
-            prefix='glyphicon'
-        )
-    ).add_to(fig6)
+    """, axis=1),
+))
 
-# 지도 출력
-display(fig6)
+# 지도 설정
+fig.update_layout(
+    mapbox_style="open-street-map",
+    mapbox_center={"lat": common_df1["Latitude"].mean(), "lon": common_df1["Longitude"].mean()},
+    mapbox_zoom=12,
+    margin={"r": 0, "t": 0, "l": 0, "b": 0},
+    title="허위 매물 지도"
+)
+
+fig.show()
+
 ```
 :::
 

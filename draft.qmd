@@ -411,7 +411,7 @@ fig2.show();
 <span style="font-size: 25px;">
   ✔**OverallQual** : 지상층 면적 <br>
   ✔**OverallCond** : 리모델링 <br>
-  ✔**Amenities** : 방 밀도 (방수/면적)
+  ✔**Amenities** : 편의시설 개수
 </span>
 
 :::
