@@ -222,7 +222,7 @@ suspect_df
 
 
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-#### 지도시각화 ####
+#### 지도시각화 - 전체 ####
 
 import plotly.express as px
 
@@ -239,6 +239,14 @@ fig = px.scatter_mapbox(
     color="price_level",
     hover_name="Neighborhood",
     hover_data=["SalePrice", "GrLivArea"],
+        labels={
+        "Latitude": "위도",
+        "Longitude": "경도",
+        "price_level": "동네 가격 수준",
+        "Neighborhood": "지역(동네)",
+        "SalePrice": "판매 가격($)",
+        "GrLivArea": "거실 면적(ft²)"
+    },
     zoom=11.5,                    
     center=center,              # 지도 중심 좌표
     height=600,
@@ -249,8 +257,7 @@ fig = px.scatter_mapbox(
 fig.show()
 
 
-####### 점수제로 얻은 72개의 허위매물 후보랑
-# 릿지 회귀 모델을 사용해서 구한 허위매물들간의 비교를 하겠다.  
+
 
 '''''''''''''''''''''''''''''''''''''''''''RidgeCV 사용 회귀모델'
 import numpy as np
@@ -312,10 +319,7 @@ for level in ['Low', 'Mid', 'High']:
     df_lvl['predicted'] = ridge.predict(X)
     df_lvl['residual']  = df_lvl['SalePrice'] - df_lvl['predicted']
     
-    # 6) 이상치(허위매물) 플래그: residual 하위 25% 이하면 True
-    thresh = df_lvl['residual'].quantile(72/2579) # 우리가 전체 대비 점수제로 뽑은 매물후보 수의비율로 확인 
-    df_lvl['ridge_flag'] = df_lvl['residual'] <= thresh
-    
+
     # 7) 인터랙티브 산점도
     fig = px.scatter(
         df_lvl,
@@ -383,13 +387,14 @@ print(f"점수&Ridget 공통 허위매물     : {len(score_set & ridge_set)}건"
 
 # (7) 각 그룹별 예시 뽑아서 보기
 print(">>> 두 방법 모두 의심한 매물 (공통)")
-df.loc[list(score_set & ridge_set)]
+print(df.loc[list(score_set & ridge_set)])
 
 print(">>> 오직 점수제만 의심한 매물")
-df.loc[list(score_set - ridge_set)]
+print(df.loc[list(score_set - ridge_set)])
 
 print(">>> 오직 Ridge만 의심한 매물")
-df.loc[list(ridge_set - score_set)]
+print(df.loc[list(ridge_set - score_set)])
+
 
 
 

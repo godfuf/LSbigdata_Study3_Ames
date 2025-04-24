@@ -211,7 +211,6 @@ for row, var in enumerate(variables, start=1):
 # 전체 레이아웃 조정
 fig2.update_layout(
     height=900, width=1000,
-    title_text="Price Level 별 히스토그램 (OverallQual, OverallCond, Amenities)",
     bargap=0.1
 )
 
