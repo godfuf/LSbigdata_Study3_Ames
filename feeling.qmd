@@ -79,7 +79,7 @@ low_df  = df[df['price_level'] == 'Low'].copy()
 
 ```
 
-#  {.sidebar}
+# {.sidebar width="100px"}
 
 ##  허위매물이란?
 
@@ -144,8 +144,8 @@ low_df  = df[df['price_level'] == 'Low'].copy()
 
 ```{python}
 import plotly.express as px
-# 색상 맵핑
 
+# 색상 맵핑
 color_map = {
     'High': '#e41a1c',   # 빨강
     'Mid': '#ff7f00',    # 주황
@@ -153,7 +153,6 @@ color_map = {
 }
 
 # 지도 시각화
-
 fig_map = px.scatter_mapbox(
     df,
     lat='Latitude',
@@ -171,16 +170,18 @@ fig_map = px.scatter_mapbox(
     height=600
 )
 
-# 스타일 및 레이아웃 설정
+# 스타일 및 레이아웃 설정 (수정된 부분 포함)
 fig_map.update_layout(
     mapbox_style="open-street-map",
     mapbox_center={"lat": 42.03, "lon": -93.63},
-    margin={"r": 0, "t": 0, "l": 0, "b": 0},
+    margin={"r": 0, "t": 60, "l": 0, "b": 0},  # 지도 여백 유지
     legend=dict(
         title='Price Level',
-        x=0.97, y=0.92,  # 살짝 아래로
-        xanchor='right', yanchor='top',
-        bgcolor='rgba(255, 255, 255, 0.6)',  # 반투명한 배경
+        x=0,  # x=0 → 좌측으로
+        y=1,  # y=1 → 상단으로
+        xanchor='left',  # 'left'로 정렬
+        yanchor='top',  # 'top'으로 정렬
+        bgcolor='rgba(255, 255, 255, 0.6)',
         bordercolor='lightgray',
         borderwidth=1
     ),
@@ -210,6 +211,10 @@ fig = px.histogram(df, x='SalePrice',
 fig.show()
 
 ```
+- mid: 주택 다수가 분포해 시장의 중심 역할
+- low: 가격 분포가 좁고 균질한 특성
+- high: 거래는 적지만 가격 변동 폭이 크고 다양성 존재
+
 :::
 
 
@@ -285,25 +290,11 @@ fig.show()
 
 </div>
 
-## Row
-:::{.card.full-width} 
-<span style="font-size: 35px;">
-🏘 가격 별 그룹 분류
-</span>
-
-```{python}
-# 가격 수준별 SalePrice 분포
-import plotly.express as px
-fig = px.histogram(df, x='SalePrice', 
-                    color='price_level', 
-                    opacity=0.6)
-fig.show()
-
-```
-
-:::
 
 ## Row {.tabset}
+
+### [점수제 탐지]{style="font-size: 40px;"}
+
 :::{.card}
 ```{python}
 # 그룹별 시각화 : 박스플롯
