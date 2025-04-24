@@ -79,11 +79,15 @@ low_df  = df[df['price_level'] == 'Low'].copy()
 
 ```
 
-# {.sidebar width="100px"}
+# {.sidebar width="150px"}
 
 ##  허위매물이란?
 
--  가격 대비 각 조건이 시장 평균을 크게 벗어난 이상치로 정의
+- 가격 대비 각 조건이 
+- 시장 평균을 크게 벗어난 경우
+- 이상치로 정의
+
+
  
 
 ## [탐지방법]{style="font-size: 14px;"}
@@ -166,20 +170,20 @@ fig_map = px.scatter_mapbox(
         'Latitude': False,
         'Longitude': False
     },
-    zoom=12,
-    height=600
+    zoom=11,
+    height=500
 )
 
 # 스타일 및 레이아웃 설정 (수정된 부분 포함)
 fig_map.update_layout(
     mapbox_style="open-street-map",
     mapbox_center={"lat": 42.03, "lon": -93.63},
-    margin={"r": 0, "t": 60, "l": 0, "b": 0},  # 지도 여백 유지
+    margin={"r": 0, "t": 30, "l": 0, "b": 0},  # 지도 여백 유지
     legend=dict(
         title='Price Level',
-        x=0,  # x=0 → 좌측으로
+        x=1,  # x=1 → 우측 끝
         y=1,  # y=1 → 상단으로
-        xanchor='left',  # 'left'로 정렬
+        xanchor='right',  # 'right'로 정렬
         yanchor='top',  # 'top'으로 정렬
         bgcolor='rgba(255, 255, 255, 0.6)',
         bordercolor='lightgray',
