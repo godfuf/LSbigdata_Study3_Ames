@@ -1,0 +1,534 @@
+# 4장
+
+## Row
+
+<div style="border: 2px solid #DC143C; border-radius: 15px; padding: 15px; background-color: #fff5f5;">
+  <span style="font-size: 25px; font-weight: bold; color: #DC143C;">
+    📌 회귀 분석
+  </span><br><br>
+  ❗ 회귀분석 모델을 적용하여 허위매물을 찾아낼 경우, 점수제로 추려진 허위매물과 무엇이 같고, 무엇이 다른지 비교가능 <br>  
+  ✔ 종속변수: 'SalePrice' <br>
+  ✔ 독립변수: 'OverallQual', 'OverallCond', 'GrLivArea', 'YearRemodAdd', 'RoomDensity', 'amenities'
+  <br><br>
+</div>
+
+## Row {height=10%}
+:::{.card}
+
+🔍 **회귀분석 진행과정** <br>
+1. 모든 변수의 영향을 유지하기 위해 **Ridge 회귀 적용** <br>
+2. 데이터를 ***학습용 80%, 테스트용 20%***로 분리하고, **5-fold 교차 검증** 수행 <br>
+3. 교차 검증을 통해 모델의 안정성을 확보하고, 다양한 정규화 강도(α)에서 테스트하여 최적의 예측 성능을 가진 모델을 선택함. <br>
+4. 성능 평가 지표로 **'neg_mean_squared_error'(음의 평균 제곱 오차)**를 사용 <br>
+5. Python의 scikit-learn에서는 점수가 높을수록 좋은 모델로 평가하는 규칙이 있어 오차 지표를 **음수화**하여 사용 <br>
+6. 허위매물 판별을 위해 실제가격과 예측가격의 **차이(잔차)**를 계산하고, **하위 2.8%(72/2579)**를 허위매물로 분류 <br>
+7. 점수제에서 발견한 허위매물 수와 동일한 비율을 적용하여 두 방법론의 결과를 **직접 비교**할 수 있게 함 <br>
+8. 각 **가격 수준(Low, Mid, High)** 그룹별로 별도의 모델을 구축하여 가격대별 특성을 반영한 허위매물 탐지가 가능하도록 함.
+
+:::
+
+## {.tabset}
+
+### Low 그룹 
+
+::: {.card} 
+
+```{python}
+
+import numpy as np
+import pandas as pd
+from sklearn.linear_model import RidgeCV
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import r2_score, mean_squared_error
+import plotly.express as px
+
+# 사용할 6개 피처와 타겟 정의
+features = [
+    'OverallQual',
+    'OverallCond',
+    'GrLivArea',
+    'YearRemodAdd',
+    'RoomDensity',
+    'amenities'
+]
+target = 'SalePrice'
+
+level = 'Low'
+df_lvl = df[df['price_level'] == level].copy()
+
+X = df_lvl[features]
+y = df_lvl[target]
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+ridge = RidgeCV(alphas=np.logspace(-4, 1, 10), cv=5, scoring='neg_mean_squared_error')
+ridge.fit(X_train, y_train)
+
+# — 예측 및 잔차 계산 —
+df_lvl['predicted'] = ridge.predict(X)
+df_lvl['residual']  = df_lvl['SalePrice'] - df_lvl['predicted']
+thresh = df_lvl['residual'].quantile(72/2579)
+df_lvl['ridge_flag'] = df_lvl['residual'] <= thresh
+
+
+#— 설명력(R²) 및 최적 α 계산·출력 —
+r2    = r2_score(y, ridge.predict(X))
+alpha = ridge.alpha_
+print(f"설명력 (R²): {r2:.3f}")
+print(f"최적 α (alpha): {alpha:.3g}\n")
+
+
+import plotly.express as px
+
+def make_figure(df, level):
+    # 1) scatter - 실제가격(x축)과 예측가격(y축) 설정
+    fig = px.scatter(
+        df,
+        x='SalePrice',     
+        y='predicted',     
+        color='ridge_flag',
+        color_discrete_map={True: 'purple', False: 'lightgray'},
+        opacity=0.7,
+        title=f"실제가격 vs 예측가격 ({level}) - Ridge Regression",
+        labels={
+            'SalePrice': '실제가격($)',
+            'predicted': '예측가격($)',
+            'ridge_flag': '허위매물 여부'
+        }
+    )
+    
+    # 2) 대각선 (y = x)
+    mn = min(df['predicted'].min(), df['SalePrice'].min())
+    mx = max(df['predicted'].max(), df['SalePrice'].max())
+    fig.add_shape(
+        type='line',
+        x0=mn, y0=mn, x1=mx, y1=mx,
+        line=dict(color='black', dash='dash')
+    )
+    
+    # 3) 축 제목 & 1:1 비율 고정 및 범례 개선
+    fig.update_layout(
+        width=650,         
+        height=600,
+        margin=dict(l=80, r=60, t=80, b=80),
+        xaxis=dict(
+            title='실제가격',
+            scaleanchor='y', 
+            scaleratio=1,
+            title_standoff=15
+        ),
+        yaxis=dict(
+            title='예측가격',
+            title_standoff=15
+        ),
+        # 4) 범례 위치와 형식 개선 ('itemname' 속성 제거)
+        legend=dict(
+            title=None,  # 범례 제목 제거
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01,
+            bgcolor="rgba(255, 255, 255, 0.8)",
+            bordercolor="Black",
+            borderwidth=1,
+            font=dict(size=12)
+        )
+    )
+    
+    # 5) 범례 텍스트 직접 업데이트
+    new_names = {'True': '허위매물 의심', 'False': '정상'}
+    fig.for_each_trace(lambda t: t.update(name = new_names[t.name]))
+    
+    return fig
+
+# 사용
+fig = make_figure(df_lvl, level)
+fig
+```
+
+
+```{python}
+# 1) 통계 계산
+flagged = df_lvl[df_lvl['ridge_flag']]
+total   = len(df_lvl)
+count   = len(flagged)
+pct     = count/total*100
+
+```
+
+✔ 전체 샘플 수 : 662개
+✔ 허위 매물 수 : 19개
+
+#### 허위매물 목록 (정렬 기준 : residual)
+
+```{python}
+# 5) 목록
+flagged[['Neighborhood','SalePrice','predicted','residual']] \
+    .sort_values('residual')
+```
+
+#### Low 그룹 허위매물 위치 지도
+
+```{python}
+
+# 1) 허위매물 의심만 필터링 (이미 flagged에 저장됨)
+suspects = flagged.copy()
+
+# 2) 지도 중심 좌표 계산
+center = {
+    "lat": suspects["Latitude"].mean(),
+    "lon": suspects["Longitude"].mean()
+}
+
+# 3) Mapbox 산점도 그리기
+fig = px.scatter_mapbox(
+    suspects,
+    lat="Latitude",
+    lon="Longitude",
+    hover_name="Neighborhood",
+    hover_data=["SalePrice","predicted","residual"],
+    labels={
+        "Latitude": "위도",
+        "Longitude": "경도",
+        "price_level": "동네 가격 수준",
+        "Neighborhood": "지역(동네)",
+        "SalePrice": "실제 가격($)",
+        "predicted": "예측 가격($)",
+        "residual": "잔차(실제 가격 - 예측 가격)"
+    },
+    color_discrete_sequence=["purple"],
+    zoom=11,
+    center=center,
+    width=600,    # 캔버스 가로(px)
+    height=600,    # 캔버스 세로(px)
+    mapbox_style="open-street-map",
+)
+
+fig
+```
+
+:::
+
+### Mid 그룹
+
+::: {.card}
+
+
+```{python}
+
+level = 'Mid'
+df_lvl = df[df['price_level'] == level].copy()
+
+X = df_lvl[features]
+y = df_lvl[target]
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+ridge = RidgeCV(alphas=np.logspace(-4, 1, 10), cv=5, scoring='neg_mean_squared_error')
+ridge.fit(X_train, y_train)
+
+df_lvl['predicted'] = ridge.predict(X)
+df_lvl['residual']  = df_lvl['SalePrice'] - df_lvl['predicted']
+thresh = df_lvl['residual'].quantile(72/2579)
+df_lvl['ridge_flag'] = df_lvl['residual'] <= thresh
+
+#— 설명력(R²) 및 최적 α 계산·출력 —
+r2    = r2_score(y, ridge.predict(X))
+alpha = ridge.alpha_
+print(f"설명력 (R²): {r2:.3f}")
+print(f"최적 α (alpha): {alpha:.3g}\n")
+
+
+
+import plotly.express as px
+
+def make_figure(df, level):
+    # 1) scatter - 실제가격(x축)과 예측가격(y축) 설정
+    fig = px.scatter(
+        df,
+        x='SalePrice',     
+        y='predicted',     
+        color='ridge_flag',
+        color_discrete_map={True: 'purple', False: 'lightgray'},
+        opacity=0.7,
+        title=f"실제가격 vs 예측가격 ({level}) - Ridge Regression",
+        labels={
+            'SalePrice': '실제가격($)',
+            'predicted': '예측가격($)',
+            'ridge_flag': '허위매물 여부'
+        }
+    )
+    
+    # 2) 대각선 (y = x)
+    mn = min(df['predicted'].min(), df['SalePrice'].min())
+    mx = max(df['predicted'].max(), df['SalePrice'].max())
+    fig.add_shape(
+        type='line',
+        x0=mn, y0=mn, x1=mx, y1=mx,
+        line=dict(color='black', dash='dash')
+    )
+    
+    # 3) 축 제목 & 1:1 비율 고정 및 범례 개선
+    fig.update_layout(
+        width=650,         
+        height=600,
+        margin=dict(l=80, r=60, t=80, b=80),
+        xaxis=dict(
+            title='실제가격',
+            scaleanchor='y', 
+            scaleratio=1,
+            title_standoff=15
+        ),
+        yaxis=dict(
+            title='예측가격',
+            title_standoff=15
+        ),
+        # 4) 범례 위치와 형식 개선 ('itemname' 속성 제거)
+        legend=dict(
+            title=None,  # 범례 제목 제거
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01,
+            bgcolor="rgba(255, 255, 255, 0.8)",
+            bordercolor="Black",
+            borderwidth=1,
+            font=dict(size=12)
+        )
+    )
+    
+    # 5) 범례 텍스트 직접 업데이트
+    new_names = {'True': '허위매물 의심', 'False': '정상'}
+    fig.for_each_trace(lambda t: t.update(name = new_names[t.name]))
+    
+    return fig
+
+# 사용
+fig = make_figure(df_lvl, level)
+fig
+```
+
+### Mid 그룹 허위매물 정리
+
+```{python}
+# 1) 통계 계산
+flagged = df_lvl[df_lvl['ridge_flag']]
+total   = len(df_lvl)
+count   = len(flagged)
+pct     = count/total*100
+
+# 4) 결과 출력
+print(f"▶ 전체 샘플 수: {total}개")
+print(f"▶ 허위매물 수: {count}개 ({pct:.1f}%)\n")
+
+```
+
+#### 허위매물 목록 (정렬 기준 : residual)
+
+```{python}
+# 5) 목록
+flagged[['Neighborhood','SalePrice','predicted','residual']] \
+    .sort_values('residual')
+```
+
+#### Mid 그룹 허위매물 위치 지도
+
+```{python}
+
+# 1) 허위매물 의심만 필터링 (이미 flagged에 저장됨)
+suspects = flagged.copy()
+
+# 2) 지도 중심 좌표 계산
+center = {
+    "lat": suspects["Latitude"].mean(),
+    "lon": suspects["Longitude"].mean()
+}
+
+# 3) Mapbox 산점도 그리기
+fig = px.scatter_mapbox(
+    suspects,
+    lat="Latitude",
+    lon="Longitude",
+    hover_name="Neighborhood",
+    hover_data=["SalePrice","predicted","residual"],
+    labels={
+        "Latitude": "위도",
+        "Longitude": "경도",
+        "price_level": "동네 가격 수준",
+        "Neighborhood": "지역(동네)",
+        "SalePrice": "실제 가격($)",
+        "predicted": "예측 가격($)",
+        "residual": "잔차(실제 가격 - 예측 가격)"
+    },
+    color_discrete_sequence=["purple"],
+    zoom=11,
+    center=center,
+    width=600,    # 캔버스 가로(px)
+    height=600,    # 캔버스 세로(px)
+    mapbox_style="open-street-map",
+)
+
+fig
+```
+
+:::
+
+### High 그룹 
+
+::: {.card}
+
+```{python}
+
+level = 'High'
+df_lvl = df[df['price_level'] == level].copy()
+
+X = df_lvl[features]
+y = df_lvl[target]
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+ridge = RidgeCV(alphas=np.logspace(-4, 1, 10), cv=5, scoring='neg_mean_squared_error')
+ridge.fit(X_train, y_train)
+
+df_lvl['predicted'] = ridge.predict(X)
+df_lvl['residual']  = df_lvl['SalePrice'] - df_lvl['predicted']
+thresh = df_lvl['residual'].quantile(72/2579)
+df_lvl['ridge_flag'] = df_lvl['residual'] <= thresh
+
+
+#— 설명력(R²) 및 최적 α 계산·출력 —
+r2    = r2_score(y, ridge.predict(X))
+alpha = ridge.alpha_
+print(f"설명력 (R²): {r2:.3f}")
+print(f"최적 α (alpha): {alpha:.3g}\n")
+
+
+import plotly.express as px
+
+def make_figure(df, level):
+    # 1) scatter - 실제가격(x축)과 예측가격(y축) 설정
+    fig = px.scatter(
+        df,
+        x='SalePrice',     
+        y='predicted',     
+        color='ridge_flag',
+        color_discrete_map={True: 'purple', False: 'lightgray'},
+        opacity=0.7,
+        title=f"실제가격 vs 예측가격 ({level}) - Ridge Regression",
+        labels={
+            'SalePrice': '실제가격($)',
+            'predicted': '예측가격($)',
+            'ridge_flag': '허위매물 여부'
+        }
+    )
+    
+    # 2) 대각선 (y = x)
+    mn = min(df['predicted'].min(), df['SalePrice'].min())
+    mx = max(df['predicted'].max(), df['SalePrice'].max())
+    fig.add_shape(
+        type='line',
+        x0=mn, y0=mn, x1=mx, y1=mx,
+        line=dict(color='black', dash='dash')
+    )
+    
+    # 3) 축 제목 & 1:1 비율 고정 및 범례 개선
+    fig.update_layout(
+        width=650,         
+        height=600,
+        margin=dict(l=80, r=60, t=80, b=80),
+        xaxis=dict(
+            title='실제가격',
+            scaleanchor='y', 
+            scaleratio=1,
+            title_standoff=15
+        ),
+        yaxis=dict(
+            title='예측가격',
+            title_standoff=15
+        ),
+        # 4) 범례 위치와 형식 개선 ('itemname' 속성 제거)
+        legend=dict(
+            title=None,  # 범례 제목 제거
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01,
+            bgcolor="rgba(255, 255, 255, 0.8)",
+            bordercolor="Black",
+            borderwidth=1,
+            font=dict(size=12)
+        )
+    )
+    
+    # 5) 범례 텍스트 직접 업데이트
+    new_names = {'True': '허위매물 의심', 'False': '정상'}
+    fig.for_each_trace(lambda t: t.update(name = new_names[t.name]))
+    
+    return fig
+
+# 사용
+fig = make_figure(df_lvl, level)
+fig
+```
+
+### High 그룹 허위매물 정리
+
+```{python}
+# 1) 통계 계산
+flagged = df_lvl[df_lvl['ridge_flag']]
+total   = len(df_lvl)
+count   = len(flagged)
+pct     = count/total*100
+
+# 4) 결과 출력
+print(f"▶ 전체 샘플 수: {total}개")
+print(f"▶ 허위매물 수: {count}개 ({pct:.1f}%)\n")
+
+```
+
+#### 허위매물 목록 (정렬 기준 : residual)
+
+```{python}
+# 5) 목록
+flagged[['Neighborhood','SalePrice','predicted','residual']] \
+    .sort_values('residual')
+```
+
+#### High 그룹 허위매물 위치 지도
+
+```{python}
+
+# 1) 허위매물 의심만 필터링 (이미 flagged에 저장됨)
+suspects = flagged.copy()
+
+# 2) 지도 중심 좌표 계산
+center = {
+    "lat": suspects["Latitude"].mean(),
+    "lon": suspects["Longitude"].mean()
+}
+
+# 3) Mapbox 산점도 그리기
+fig = px.scatter_mapbox(
+    suspects,
+    lat="Latitude",
+    lon="Longitude",
+    hover_name="Neighborhood",
+    hover_data=["SalePrice","predicted","residual"],
+    labels={
+        "Latitude": "위도",
+        "Longitude": "경도",
+        "price_level": "동네 가격 수준",
+        "Neighborhood": "지역(동네)",
+        "SalePrice": "실제 가격($)",
+        "predicted": "예측 가격($)",
+        "residual": "잔차(실제 가격 - 예측 가격)"
+    },
+    color_discrete_sequence=["purple"],
+    zoom=11,
+    center=center,
+    width=600,    # 캔버스 가로(px)
+    height=600,    # 캔버스 세로(px)
+    mapbox_style="open-street-map",
+)
+
+fig
+```
+
+:::
