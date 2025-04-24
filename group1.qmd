@@ -102,7 +102,7 @@ low_df  = df[df['price_level'] == 'Low'].copy()
 2. 회귀분석
 
 
-# 발표
+# 0. 발표
 
 <div style="display: flex; gap: 10px; align-items: flex-start;">
   <img src="imagebox/fakeroom1.png" style="width: 49%;" alt="첫 번째 이미지">
@@ -110,7 +110,7 @@ low_df  = df[df['price_level'] == 'Low'].copy()
 </div> 
 
 
-# 개요
+# 1. 개요
 
 ## Row {height="15%"}
 
@@ -286,7 +286,7 @@ fig.show()
 
 
 
-# 2장
+# 2. 점수제 과정
 
 ## Columns
 
@@ -296,7 +296,16 @@ fig.show()
   </span><br><br>
   6가지 조건을 바탕으로 점수를 부여하고, 3점 이상에 해당되는 허위매물을 추출한다. <br>
   이후 회귀 모델을 통해 허위매물을 추출한 뒤, 공통 허위매물을 추출한다.
+
+   ✔**GrLivArea** : 지상층 면적 
+  ✔**YearRemodAdd** : 리모델링 
+  ✔**RoomDensity** : 방 밀도 (방수/면적)
+  ✔**OverallQual** : 지상층 면적 
+  ✔**OverallCond** : 리모델링
+  ✔**Amenities** : 편의시설 개수
   <br><br>
+
+  
 
 </div>
 
@@ -582,7 +591,7 @@ display(HTML(html_table))
 
 ```
 
-# 3장
+# 3.점수제 결과
 
 ## Row {height=30%}
 ### {width=50%}
@@ -661,7 +670,7 @@ fig.show()
 
 
 
-# 4장
+# 4.회귀분석
 
 ## 회귀분석 과정 설명
 
