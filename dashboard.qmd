@@ -114,31 +114,6 @@ fig.show()
 
 :::
 
-```{python}
-
-# 각 그룹별 지역 목록 추출
-high_neighborhoods = df[df['price_level'] == 'High']['Neighborhood'].unique()
-mid_neighborhoods = df[df['price_level'] == 'Mid']['Neighborhood'].unique()
-low_neighborhoods = df[df['price_level'] == 'Low']['Neighborhood'].unique()
-
-# 각 그룹별 지역을 데이터프레임으로 생성하고, 가격 레벨을 추가
-high_df_neighborhoods = pd.DataFrame(high_neighborhoods, columns=['Neighborhood'])
-high_df_neighborhoods['Price_Level'] = 'High'
-
-mid_df_neighborhoods = pd.DataFrame(mid_neighborhoods, columns=['Neighborhood'])
-mid_df_neighborhoods['Price_Level'] = 'Mid'
-
-low_df_neighborhoods = pd.DataFrame(low_neighborhoods, columns=['Neighborhood'])
-low_df_neighborhoods['Price_Level'] = 'Low'
-
-# 세 개의 데이터프레임을 합침
-neighborhoods_df = pd.concat([high_df_neighborhoods, mid_df_neighborhoods, low_df_neighborhoods], ignore_index=True)
-
-# 출력
-neighborhoods_df
-
-```
-
 ## Row {.tabset}
 :::{.card}
 ```{python}
@@ -463,12 +438,15 @@ center = {
     "lon": suspect_df["Longitude"].mean()
 }
 
+# 허위매물만 필터링 (suspect_flag가 True인 데이터만)
+suspect_only_df = suspect_df[suspect_df['suspect_flag'] == True]
+
 fig = px.scatter_mapbox(
-    suspect_df,
+    suspect_only_df,  # 허위매물 데이터만 시각화
     lat="Latitude",
     lon="Longitude",
-    color="price_level",
-    size="SalePrice",  # 마커 크기를 판매 가격에 따라 설정
+    color="price_level",  # 가격 수준에 따라 색상 구분
+    size="SalePrice",  # 마커 크기는 판매 가격에 따라 설정
     hover_name="Neighborhood",
     hover_data=["SalePrice", "GrLivArea"],
     labels={
@@ -480,10 +458,10 @@ fig = px.scatter_mapbox(
         "GrLivArea": "거실 면적(ft²)"
     },
     zoom=12,                    
-    center=center,              
+    center=center,               
     height=600,
     mapbox_style="open-street-map",
-    title="Ames Housing: Price Level by Neighborhood (확대)"
+    title="Ames Housing: Price Level by Neighborhood (허위매물만)"
 )
 
 fig.show()
