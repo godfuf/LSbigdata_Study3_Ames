@@ -1,3 +1,19 @@
+---
+title: "Ames"
+author: "1조"
+format: 
+  dashboard:
+    scrolling: true
+  html:
+    theme: flatly
+freeze: true
+---
+
+# 최종 허위매물은?
+
+
+
+```{python}
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -9,12 +25,11 @@ plt.rcParams['axes.unicode_minus'] = False
 pd.set_option('display.max_columns', None)
 
 
-# 데이터 불러오기
+
 ames = pd.read_csv('C:/Users/USER/Documents/lsbigdata-gen4/1joameshouse/group1_project/ames.csv')
 
-ames['Neighborhood'].unique()
 
-ames.info()
+
 
 # 복사 및 전처리
 df = ames.copy()
@@ -40,7 +55,7 @@ df['price_level'] = np.select(
     ['Low', 'Mid', 'High'],
     default=np.nan
 )
-df
+
 ### 시각화
 
 
@@ -173,18 +188,9 @@ for name, gdf, med in [
     flags = [c for c in filt.columns 
              if c.startswith(f'flag_{name.lower()}') or c == 'flag_good_condition']
     
-    print(f"\n— {name} 그룹 (SalePrice ≤ median={med:.0f}) —")
+    
     
     # 1) 플래그별 1값 개수
-    print("플래그별 1값 개수:")
-    print(filt[flags].sum(), "\n")
-    
-    # 2) score 분포 & 3점 이상 건수
-    filt['score'] = filt[flags].sum(axis=1)
-    print("score 분포:")
-    print(filt['score'].value_counts().sort_index(), "\n")
-    print(f"score ≥ 3인 건수: { (filt['score'] >= 3).sum() }건")
-
 
 # ——————————————————————————————
 # 3) 원본 df에 score 계산 & 허위매물 후보 추출
@@ -215,44 +221,7 @@ df['suspect_flag'] = (df['SalePrice'] <= median_price) & (df['score'] >= 3)
 suspect_df = df[df['suspect_flag']].copy()
 
 # (5) 결과 출력: 모든 컬럼 포함
-print(f"허위매물 후보 총 {len(suspect_df)}건")
-suspect_df
 
-
-
-
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-#### 지도시각화 ####
-
-import plotly.express as px
-
-# 지도 중심을 데이터의 평균 위도·경도로 설정
-center = {
-    "lat": df["Latitude"].mean(),
-    "lon": df["Longitude"].mean()
-}
-
-fig = px.scatter_mapbox(
-    df,
-    lat="Latitude",
-    lon="Longitude",
-    color="price_level",
-    hover_name="Neighborhood",
-    hover_data=["SalePrice", "GrLivArea"],
-    zoom=11.5,                    
-    center=center,              # 지도 중심 좌표
-    height=600,
-    mapbox_style="open-street-map",
-    title="Ames Housing: Price Level by Neighborhood (확대)"
-)
-
-fig.show()
-
-
-####### 점수제로 얻은 72개의 허위매물 후보랑
-# 릿지 회귀 모델을 사용해서 구한 허위매물들간의 비교를 하겠다.  
-
-'''''''''''''''''''''''''''''''''''''''''''RidgeCV 사용 회귀모델'
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import RidgeCV
@@ -296,17 +265,14 @@ for level in ['Low', 'Mid', 'High']:
     y_test_pred = ridge.predict(X_test) # ridge모델로 테스트 데이터 예측 수행
     r2   = r2_score(y_test, y_test_pred) # 모델이 실제 데이터 분산을 얼마나 잘 설명하는지 나타내는 지표
     rmse = np.sqrt(mean_squared_error(y_test, y_test_pred))
-    print(f"{level} 그룹 → Test R² = {r2:.3f}, RMSE = {rmse:,.0f}")
-    print(f"    최적 alpha = {ridge.alpha_:.6f}")
+    
     
     # 모델의 계수 확인 (Ridge는 모든 변수의 계수를 유지함)
     coefficients = pd.DataFrame({
         'Feature': features,
         'Coefficient': ridge.coef_
     }).sort_values('Coefficient', ascending=False)
-    print("Ridge 계수:")
-    print(coefficients)
-    print("\n" + "-"*50 + "\n") # 예측 계수 다뽑음
+
     
     # 5) 전체 그룹 데이터에 대해 예측 및 residual 계산
     df_lvl['predicted'] = ridge.predict(X)
@@ -327,22 +293,6 @@ for level in ['Low', 'Mid', 'High']:
         labels={'SalePrice':'실제가격','predicted':'예측가격','ridge_flag':'허위매물 의심'},
         opacity=0.7
     )
-    # y = x 대각선 추가 (완벽한 예측 참조선)
-    mn, mx = df_lvl[['SalePrice','predicted']].min().min(), df_lvl[['SalePrice','predicted']].max().max()
-    fig.add_shape(
-        type='line', x0=mn, y0=mn, x1=mx, y1=mx,
-        line=dict(color='black', dash='dash')
-    )
-    fig.update_layout(width=600, height=600)
-    fig.show()
-    
-#### 예측한 값 중에서 72/2579%만 뽑아서 우리가 선정한 후보 매물이랑 개수 비교교
-
-
-
-# ———————————————————————————————————————
-# 4. 두 가지 메서드로 뽑힌 허위매물 비교
-# ———————————————————————————————————————
 
 # (1) 사용할 피처·타겟 재확인
 features = ['OverallQual', 'OverallCond', 'GrLivArea', 'YearRemodAdd', 'RoomDensity', 'amenities']
@@ -372,63 +322,56 @@ for level in ['Low','Mid','High']:
 score_set   = set(df.index[df['suspect_flag']])
 ridge_set   = set(df.index[df['ridge_flag']])
 
-# (5) 개수 요약 출력
-print("=== 허위매물 건수 비교 ===")
-print(f"점수제(suspect_flag) : {len(score_set)}건")
-print(f"Ridge   기준      : {len(ridge_set)}건\n")
+```
 
-print("=== 교집합 건수 ===")
-print(f"점수&Ridget 공통 허위매물     : {len(score_set & ridge_set)}건")
+---
+# 최종 허위매물은
+
+## Row 
+```{python}
+#| content: valuebox
+#| title: "점수제 허위매물"
+#| icon: house
+#| color: "#FFD700"
+dict(
+  value = "72개",
+  )
+```
+```{python}
+#| content: valuebox
+#| title: "회귀분석 허위매물"
+#| icon: house
+#| color: "#FFD700"
+dict(
+  value = "69개",
+  )
+```
+```{python}
+#| content: valuebox
+#| title: "최종 선정 허위매물"
+#| icon: exclamation-triangle
+#| color: "#FF0000"
+dict(
+  value = "8개",
+  style = "font-size: 10px;"
+  )
+```
 
 
-# (7) 각 그룹별 예시 뽑아서 보기
-print(">>> 두 방법 모두 의심한 매물 (공통)")
-df.loc[list(score_set & ridge_set)]
-
-print(">>> 오직 점수제만 의심한 매물")
-df.loc[list(score_set - ridge_set)]
-
-print(">>> 오직 Ridge만 의심한 매물")
-df.loc[list(ridge_set - score_set)]
 
 
+## Row 
+### {width=50%}
 
-import plotly.express as px
-
-# 공통 허위매물 인덱스 추출
-common_suspects = list(score_set & ridge_set)
-
-# 공통 허위매물 데이터프레임 생성
-common_df = df.loc[common_suspects].copy()
-
-# 지도 중심점 설정
-center = {
-    "lat": common_df["Latitude"].mean(),
-    "lon": common_df["Longitude"].mean()
-}
-
-# 지도 시각화
-fig = px.scatter_mapbox(
-    common_df,
-    lat="Latitude",
-    lon="Longitude",
-    color="price_level",
-    hover_name="Neighborhood",
-    hover_data=["SalePrice", "GrLivArea", "OverallQual", "amenities"],
-    zoom=11.5,
-    center=center,
-    height=600,
-    mapbox_style="open-street-map",
-    title="🔍 점수제 + Ridge 공통 허위매물 후보 위치"
-)
-
-fig.show()
+```{python}
 
 import folium
-df.loc[list(score_set & ridge_set)]
-# 공통 허위매물만 추출
-common_df = df.loc[list(score_set & ridge_set)].copy()
 
+# 공통 허위매물만 추출 (점수제 + Ridge 회귀 모두 해당)
+common_df = df.loc[list(score_set & ridge_set)].copy()
+common_df1 = df.loc[list(score_set & ridge_set)].copy()
+
+# 좌표 결측치 제거
 common_df = common_df.dropna(subset=["Latitude", "Longitude"])
 
 # 지도 중심 좌표 설정
@@ -436,7 +379,7 @@ center_lat = common_df["Latitude"].mean()
 center_lon = common_df["Longitude"].mean()
 
 # folium 지도 객체 생성
-m = folium.Map(location=[center_lat, center_lon], zoom_start=12)
+fig6 = folium.Map(location=[center_lat, center_lon], zoom_start=12)
 
 # price_level별 색상 지정
 color_map = {
@@ -445,21 +388,58 @@ color_map = {
     'High': 'red'
 }
 
-# 마커 추가
-for i, row in common_df.iterrows():
+# 마커 추가 (자동 출력 억제)
+for _, row in common_df.iterrows():
     popup_text = f"""
     <b>지역:</b> {row['Neighborhood']}<br>
     <b>매매가:</b> ${row['SalePrice']:,}<br>
-    <b>거실면적:</b> {row['GrLivArea']} sqft<br>
-    <b>전체평가:</b> {row['OverallQual']}<br>
+    <b>지상면적:</b> {row['GrLivArea']} sqft<br>
+    <b>마감 품질:</b> {row['OverallQual']}<br>
+    <b>전반 상태:</b> {row['OverallCond']}<br>
     <b>편의시설 수:</b> {row['amenities']}<br>
+    <b>리모델링 연도:</b> {row['YearRemodAdd']}<br>
     <b>점수제 점수:</b> {row['score']}
     """
-    folium.Marker(
+    _ = folium.Marker(
         location=[row['Latitude'], row['Longitude']],
         popup=folium.Popup(popup_text, max_width=250),
-        icon=folium.Icon(color=color_map[row['price_level']], icon='exclamation-sign', prefix='glyphicon')
-    ).add_to(m)
+        icon=folium.Icon(
+            color=color_map.get(row['price_level'], 'gray'),
+            icon='exclamation-sign',
+            prefix='glyphicon'
+        )
+    ).add_to(fig6)
 
 # 지도 출력
-m
+fig6
+```
+
+### {width=50%}
+
+```{python}
+cols = [
+    'Neighborhood','PID', 'SalePrice', 'score',
+    'OverallQual', 'OverallCond', 'GrLivArea',
+    'YearRemodAdd', 'RoomDensity', 'amenities',
+]
+common_df_selected = common_df1[cols]
+common_df_selected.sort_values(by='Neighborhood')
+
+```
+
+
+
+📍 서로 다른 탐지 관점을 가지고 있기 때문에 두가지 방법의 결과가 상이하다고 판단
+
+## Row {width=100%}
+
+<div style="border: 2px solid #DC143C; border-radius: 10px; padding: 15px; background-color: #fff5f5;">
+  <span style="font-size: 20px; font-weight: bold; color: #DC143C;">
+    🏠 최종 결론
+  </span><br><br>
+  점수제를 통한 허위매물 탐지는 <b>직관적인</b> 기준에 기반해 빠르게 의심 매물을 걸러낼 수 있으며,<br>
+  회귀 분석을 통한 방법은 <b>패턴분석</b>을 통해 <b>정교한 판단</b>을 할 수 있습니다.<br><br>
+  
+  두 가지 방법을 <b style="color:#DC143C;">보완적으로 함께 활용</b>할 경우,<br>
+  단일 방법보다 <b>더 높은 신뢰도로 허위매물 가능성이 높은 대상</b>을 선별할 수 있다고 판단됩니다.
+</div>
