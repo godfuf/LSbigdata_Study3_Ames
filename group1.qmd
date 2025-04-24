@@ -5,7 +5,7 @@ format:
   dashboard:
     theme: sandstone
     scrolling: True
-    logo: igotyou.png
+    logo: project/group1_project/imagebox/nofakehouse.png
     freeze: true
 --- 
 
