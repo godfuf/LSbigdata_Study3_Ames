@@ -1,0 +1,1484 @@
+---
+title: "Ames Housing: 허위매물 탐지 프로젝트"
+author: '일단잡1조(송성필, 홍주형, 편서영, 양현준)'
+format: 
+  dashboard:
+    theme: sandstone
+    scrolling: True
+    logo: imagebox/nofakehouse.png
+    freeze: true
+---
+
+
+```{python}
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.linear_model import LassoCV
+from sklearn.model_selection import train_test_split
+import plotly.express as px
+
+plt.rcParams['font.family'] = 'Malgun Gothic'
+plt.rcParams['axes.unicode_minus'] = False
+pd.set_option('display.max_columns', None)
+
+######## 전처리 과정 ########
+# 데이터 불러오기
+ames = pd.read_csv('ames.csv')
+df = ames.copy()
+
+# 그룹 분류 
+df_ns = df.groupby('Neighborhood')['SalePrice'].mean()
+
+# 분위수 계산
+q1 = df_ns.quantile(0.25)
+q2 = df_ns.quantile(0.75)
+
+#df['price_level'] 이라는 칼럼으로 집값 별 분위로 구분
+df['price_level'] = np.select(
+    [
+        df['Neighborhood'].isin(df_ns[df_ns <= q1].index),
+        df['Neighborhood'].isin(df_ns[(df_ns > q1) & (df_ns <= q2)].index),
+        df['Neighborhood'].isin(df_ns[df_ns > q2].index)
+    ],
+    ['Low', 'Mid', 'High'],
+    default='Unknown'  #  문자열로 통일
+)
+
+# 범주형 컬럼만 선택
+cat_cols = df.select_dtypes(include='object').columns
+# 범주형 결측치 'None'으로 대체
+df[cat_cols] = df[cat_cols].fillna('None')
+
+
+df['amenities'] = (
+    (df['PoolArea'] > 0).astype(int) +
+    (df['TotalBsmtSF'] > 0).astype(int) +
+    (df['GarageArea'] > 0).astype(int) + 
+    (df['MiscVal'] > 0).astype(int)
+)
+
+df['TotalRooms'] = df['TotRmsAbvGrd'] + df['HalfBath'] + df['FullBath']  # 욕실 제외 방수 + 반욕실 + 풀욕실
+df['RoomDensity'] = df['TotalRooms'] / df['GrLivArea']  # 방 밀도 (방수 / 거실 면적)
+##### 허위매물 판단 #####
+
+
+## 조건 : 기준값 상위 25% 이상
+df['GrLivArea_th'] = (df['GrLivArea'] / df.groupby('price_level')['GrLivArea'].transform(lambda x: x.quantile(0.75))
+)
+
+df['YearRemodAdd_th'] = (df['YearRemodAdd'] / df.groupby('price_level')['YearRemodAdd'].transform(lambda x: x.quantile(0.75))
+)
+
+df['RoomDensity_th'] = (df['RoomDensity'] / df.groupby('price_level')['RoomDensity'].transform(lambda x: x.quantile(0.75))
+)
+
+# 지역들 분리하는 df 생성
+high_df = df[df['price_level'] == 'High'].copy()
+mid_df  = df[df['price_level'] == 'Mid'].copy()
+low_df  = df[df['price_level'] == 'Low'].copy()
+
+```
+
+#  {.sidebar}
+
+## \## [에임즈 인트로]{style="font-size: 14px;"}
+
+-   블라블라
+
+## [연속형 \> 박스플롯 / 범주형 \> 그래프, 조건별 결과 ]{style="font-size: 14px;"}
+
+1.  
+
+2.  
+
+3.  
+
+4.  
+
+## [회귀모델]{style="font-size: 14px;"}
+
+1.  
+
+2.  
+
+## [결론 및 보완점]{style="font-size: 14px;"}
+
+1.  
+
+2.  
+
+3.  결론
+
+4.  분석의 제한점
+
+# 개요
+
+## Row {height="15%"}
+
+### Column {width="50%"}
+
+::: card
+
+### [어디 있니 허위매물]{style="font-size: 30px;"}
+
+<img src="imagebox/igotyou.png" alt="잡았다 요놈" style="width: 100%;"/>
+
+-   에임스(Ames) 도시의 허위매물 탐지
+
+:::
+
+### Column {width="50%"}
+
+::: card
+
+### Ames 도시 특징
+
+-   위치: 미국 아이오와주 중부, 디모인 북쪽 약 50km
+-   인구: 약 66,000명 (2020년 기준)
+-   특징:
+
+1.  아이오와 주립대학교 소재 (학생 수 약 30,000명, 전체 인구의 약 45%)
+2.  안정된 주거 환경과 활발한 임대 시장 (임대 가구 비율 약 55%)
+3.  젊은 인구 비중 높고 교육 중심 도시 (20\~34세 인구 비중 약 40%)
+
+:::
+
+## Row {height="35%"}
+
+::: card
+
+### Ames 위치 및 지역 분포
+
+```{python}
+import plotly.express as px
+# 색상 맵핑
+
+color_map = {
+    'High': '#e41a1c',   # 빨강
+    'Mid': '#ff7f00',    # 주황
+    'Low': '#4daf4a'     # 초록
+}
+
+# 지도 시각화
+
+fig_map = px.scatter_mapbox(
+    df,
+    lat='Latitude',
+    lon='Longitude',
+    color='price_level',
+    color_discrete_map=color_map,
+    hover_name='Neighborhood',
+    hover_data={
+        'SalePrice': True,
+        'price_level': True,
+        'Latitude': False,
+        'Longitude': False
+    },
+    zoom=12,
+    height=600
+)
+
+# 스타일 및 레이아웃 설정
+fig_map.update_layout(
+    mapbox_style="open-street-map",
+    mapbox_center={"lat": 42.03, "lon": -93.63},
+    margin={"r": 0, "t": 0, "l": 0, "b": 0},
+    legend=dict(
+        title='Price Level',
+        x=0.97, y=0.92,  # 살짝 아래로
+        xanchor='right', yanchor='top',
+        bgcolor='rgba(255, 255, 255, 0.6)',  # 반투명한 배경
+        bordercolor='lightgray',
+        borderwidth=1
+    ),
+    font=dict(size=14, color='black'),
+)
+
+```
+
+-   Ames 지역의 평균 주택가격 기준
+-   상·중·하로 분류
+-   각 점은 개별 주택을 의미
+
+:::
+
+## Row {height="20%"}
+
+
+### 지역별 주택 가격 구간 분류
+
+| 가격 구간 | 평균 가격 범위 (USD) | 주요 지역 |
+|----|----|----|
+| 🔺 **고가 지역 (High)** | ≥ 217,676 | NoRidge, NridgHt, StoneBr, Veenker, Greens, Timber |
+| ⚖️ **중간 지역 (Mid)** | 136,144 \~ 217,675 | CollgCr, Mitchel, NAmes, SawyerW, OldTown, Crawfor, Edwards |
+| 🔻 **저가 지역 (Low)** | ≤ 136,143 | MeadowV, BrDale, IDOTRR, Landmrk, Blueste |
+
+> -   `Neighborhood`별 평균 `SalePrice`를 기준으로 분위수(Quantile)를 계산하여 고가/중간/저가로 분류함\
+> -   상위 25% 이상: 고가 지역, 중위 50%: 중간 지역, 하위 25% 이하: 저가 지역
+
+
+## Row {height="30%"}
+
+### card
+
+🔺 고가 지역 (High)
+
+-   평균 주택 가격이 높고 고급 주택 밀집
+-   최신 건축/리모델링, 품질 우수
+-   넓은 면적과 부대시설 완비
+-   고급 단독주택 중심, 조용한 환경
+-   거래량은 적지만 희소성 존재
+
+:::
+
+###  card
+
+⚖️ 중간 지역 (Mid)
+
+-   Ames 평균 수준 주택 분포
+-   다양한 주거 형태(단독, 타운하우스 등)
+-   젊은층/대학생 임대 수요 존재
+-   인프라 양호, 가족 선호 지역
+-   거래량 많고 시장 내 활발
+
+:::
+
+
+###  card
+
+🔻 저가 지역 (Low)
+
+-   평균 주택 가격 낮고 일부 노후
+-   유지 관리 상태 중하 수준
+-   소형 임대 주택 비중 높음
+-   소음, 상업지 인접 등으로 선호도 낮음
+-   거래량 적고 정보 부족
+
+:::
+
+
+
+
+# 2장
+
+## Columns
+
+<div style="border: 2px solid #DC143C; border-radius: 15px; padding: 15px; background-color: #fff5f5;">
+  <span style="font-size: 25px; font-weight: bold; color: #DC143C;">
+    📌 분석 과정
+  </span><br><br>
+  6가지 조건을 바탕으로 점수를 부여하고, 3점 이상에 해당되는 허위매물을 추출한다. <br>
+  이후 회귀 모델을 통해 허위매물을 추출한 뒤, 공통 허위매물을 추출한다.
+  <br><br>
+
+</div>
+
+## Row
+:::{.card} 
+<span style="font-size: 35px;">
+🏘 가격 별 그룹 분류
+</span>
+
+```{python}
+# 가격 수준별 SalePrice 분포
+import plotly.express as px
+fig = px.histogram(df, x='SalePrice', 
+                    color='price_level', 
+                    opacity=0.6)
+fig.show()
+
+```
+
+:::
+
+## Row {.tabset}
+:::{.card}
+```{python}
+# 그룹별 시각화 : 박스플롯
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+# 서브플롯 생성 (가로로 3개)
+fig1 = make_subplots(rows=1, cols=3, subplot_titles=("GrLivArea by Price Level", 
+                                                    "YearRemodAdd by Price Level", 
+                                                    "RoomDensity by Price Level"))
+
+# GrLivArea
+for level in df['price_level'].unique():
+    fig1.add_trace(
+        go.Box(y=df[df['price_level'] == level]['GrLivArea'],
+               name=level,
+               boxmean=True),
+        row=1, col=1
+    )
+# YearRemodAdd
+for level in df['price_level'].unique():
+    fig1.add_trace(
+        go.Box(y=df[df['price_level'] == level]['YearRemodAdd'],
+               name=level,
+               boxmean=True),
+        row=1, col=2
+    )
+# RoomDensity
+for level in df['price_level'].unique():
+    fig1.add_trace(
+        go.Box(y=df[df['price_level'] == level]['RoomDensity'],
+               name=level,
+               boxmean=True),
+        row=1, col=3
+    )
+
+# 전체 레이아웃 설정
+fig1.update_layout(
+    height=500, width=1200,
+    showlegend=False
+)
+
+fig1.show();
+```
+
+<span style="font-size: 25px;">
+  ✔**GrLivArea** : 지상층 면적 <br>
+  ✔**YearRemodAdd** : 리모델링 <br>
+  ✔**RoomDensity** : 방 밀도 (방수/면적)
+<span>
+
+:::
+
+:::{.card}
+```{python}
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+# 서브플롯 생성: 3행 3열
+fig2 = make_subplots(
+    rows=3, cols=3,
+    subplot_titles=[
+        'OverallQual - Low', 'OverallQual - Mid', 'OverallQual - High',
+        'OverallCond - Low', 'OverallCond - Mid', 'OverallCond - High',
+        'Amenities - Low', 'Amenities - Mid', 'Amenities - High'
+    ]
+)
+# 변수 리스트 및 시각화 세팅
+variables = ['OverallQual', 'OverallCond', 'amenities']
+colors = ['skyblue', 'salmon', 'lightgreen']
+bins_dict = {
+    'OverallQual': list(range(1, 11)),
+    'OverallCond': list(range(1, 11)),
+    'amenities': list(range(0, 6))
+}
+# 그래프 추가
+for row, var in enumerate(variables, start=1):
+    for col, level in enumerate(['Low', 'Mid', 'High'], start=1):
+        subset = df[df['price_level'] == level]
+        fig2.add_trace(
+            go.Histogram(
+                x=subset[var],
+                xbins=dict(
+                    start=min(bins_dict[var]),
+                    end=max(bins_dict[var]),
+                    size=1
+                ),
+                marker_color=colors[row-1],
+                name=f'{var} - {level}',
+                showlegend=False
+            ),
+            row=row, col=col
+        )
+# 전체 레이아웃 조정
+fig2.update_layout(
+    height=900, width=1000,
+    bargap=0.1
+)
+
+fig2.show();
+
+```
+
+<span style="font-size: 25px;">
+  ✔**OverallQual** : 지상층 면적 <br>
+  ✔**OverallCond** : 리모델링 <br>
+  ✔**Amenities** : 방 밀도 (방수/면적)
+</span>
+
+:::
+
+## Row
+
+```{python}
+# High 그룹
+high_med      = high_df['SalePrice'].median()
+high_area_th  = high_df['GrLivArea'].quantile(0.75)
+high_remod_th = high_df['YearRemodAdd'].quantile(0.75)
+high_den_th   = high_df['RoomDensity'].quantile(0.75)
+
+high_df['flag_high_qual']      = (high_df['OverallQual']  >= 9).astype(int)
+high_df['flag_good_condition'] = (high_df['OverallCond']  >= 6).astype(int)
+high_df['flag_high_area']      = (high_df['GrLivArea']    >= high_area_th ).astype(int)
+high_df['flag_high_remod']     = (high_df['YearRemodAdd'] >= high_remod_th).astype(int)
+high_df['flag_high_density']   = (high_df['RoomDensity']  >= high_den_th  ).astype(int)
+high_df['flag_high_amenities'] = (high_df['amenities']    >= 3            ).astype(int)
+
+# Mid 그룹
+mid_med      = mid_df['SalePrice'].median()
+mid_area_th  = mid_df['GrLivArea'].quantile(0.75)
+mid_remod_th = mid_df['YearRemodAdd'].quantile(0.75)
+mid_den_th   = mid_df['RoomDensity'].quantile(0.75)
+
+mid_df['flag_mid_qual']        = (mid_df['OverallQual']  >= 8).astype(int)
+mid_df['flag_good_condition']  = (mid_df['OverallCond']  >= 6).astype(int)
+mid_df['flag_mid_area']        = (mid_df['GrLivArea']    >= mid_area_th ).astype(int)
+mid_df['flag_mid_remod']       = (mid_df['YearRemodAdd'] >= mid_remod_th).astype(int)
+mid_df['flag_mid_density']     = (mid_df['RoomDensity']  >= mid_den_th  ).astype(int)
+mid_df['flag_mid_amenities']   = (mid_df['amenities']    >= 3            ).astype(int)
+
+# Low 그룹
+low_med      = low_df['SalePrice'].median()
+low_area_th  = low_df['GrLivArea'].quantile(0.75)
+low_remod_th = low_df['YearRemodAdd'].quantile(0.75)
+low_den_th   = low_df['RoomDensity'].quantile(0.75)
+
+low_df['flag_low_qual']        = (low_df['OverallQual']  >= 7).astype(int)
+low_df['flag_good_condition']  = (low_df['OverallCond']  >= 8).astype(int)
+low_df['flag_low_area']        = (low_df['GrLivArea']    >= low_area_th ).astype(int)
+low_df['flag_low_remod']       = (low_df['YearRemodAdd'] >= low_remod_th).astype(int)
+low_df['flag_low_density']     = (low_df['RoomDensity']  >= low_den_th  ).astype(int)
+low_df['flag_low_amenities']   = (low_df['amenities']    >= 3            ).astype(int)
+
+for name, gdf, med in [
+    ('High', high_df, high_med),
+    ('Mid',  mid_df,  mid_med),
+    ('Low',  low_df,  low_med),
+]:
+    # Median 이하인 매물만 복사본으로
+    filt = gdf.loc[gdf['SalePrice'] <= med].copy()
+    
+    # 이 그룹의 flag 컬럼 리스트
+    flags = [c for c in filt.columns 
+             if c.startswith(f'flag_{name.lower()}') or c == 'flag_good_condition']
+
+# (1) score 계산: 6가지 조건을 한 줄로 집계
+qual_th = {'Low':7,'Mid':8,'High':9}
+cond_th = {'Low':8,'Mid':6,'High':6}
+
+df['score'] = df.apply(lambda r: 
+    int(r['OverallQual']  >= qual_th[r['price_level']]) +
+    int(r['OverallCond']  >= cond_th [r['price_level']]) +
+    int(r['GrLivArea']    >= r['GrLivArea_th']) +
+    int(r['YearRemodAdd'] >= r['YearRemodAdd_th']) +
+    int(r['RoomDensity']  >= r['RoomDensity_th']) +
+    int(r['amenities']    >= 3),
+    axis=1
+)
+
+# (2) 그룹별 중위값 이하 여부
+median_price = df.groupby('price_level')['SalePrice'].transform('median')
+
+# (3) suspect_flag 생성
+df['suspect_flag'] = (df['SalePrice'] <= median_price) & (df['score'] >= 3)
+
+# (4) 허위매물 후보만 추출
+suspect_df = df[df['suspect_flag']].copy()
+
+
+```
+
+```{python}
+from IPython.display import display, HTML
+
+html_table = """
+<div style="display: flex; flex-direction: row; gap: 20px; justify-content: space-between;">
+  <div style="width: 33%; padding: 10px; border: 2px solid #4CAF50; border-radius: 15px; background-color: #e8f5e9;">
+    <span style="font-size: 32px; font-weight: bold; color: #4CAF50;">📊 **High 그룹 분석**</span>
+    <br><br>
+    <strong style="font-size: 24px;">조건 플래그:</strong><br>
+    <ul style="font-size: 20px;">
+      <li>flag_high_qual: 3</li>
+      <li>flag_good_condition: 22</li>
+      <li>flag_high_area: 10</li>
+      <li>flag_high_remod: 76</li>
+      <li>flag_high_density: 93</li>
+      <li>flag_high_amenities: 3</li>
+    </ul>
+    <br>
+    <strong style="font-size: 24px;">Score 분포:</strong><br>
+    <ul style="font-size: 20px;">
+      <li>0: 76</li>
+      <li>1: 103</li>
+      <li>2: 47</li>
+      <li>3: 2</li>
+      <li>4: 1</li>
+    </ul>
+    <br>
+    <strong style="font-size: 24px;">Score ≥ 3인 건수: 3건</strong>
+  </div>
+
+  <div style="width: 33%; padding: 10px; border: 2px solid #2196F3; border-radius: 15px; background-color: #e3f2fd;">
+    <span style="font-size: 32px; font-weight: bold; color: #2196F3;">📊 **Mid 그룹 분석**</span>
+    <br><br>
+    <strong style="font-size: 24px;">조건 플래그:</strong><br>
+    <ul style="font-size: 20px;">
+      <li>flag_mid_qual: 2</li>
+      <li>flag_good_condition: 366</li>
+      <li>flag_mid_area: 53</li>
+      <li>flag_mid_remod: 107</li>
+      <li>flag_mid_density: 296</li>
+      <li>flag_mid_amenities: 37</li>
+    </ul>
+    <br>
+    <strong style="font-size: 24px;">Score 분포:</strong><br>
+    <ul style="font-size: 20px;">
+      <li>0: 158</li>
+      <li>1: 348</li>
+      <li>2: 172</li>
+      <li>3: 51</li>
+      <li>4: 4</li>
+    </ul>
+    <br>
+    <strong style="font-size: 24px;">Score ≥ 3인 건수: 55건</strong>
+  </div>
+
+  <div style="width: 33%; padding: 10px; border: 2px solid #FF5722; border-radius: 15px; background-color: #ffebee;">
+    <span style="font-size: 32px; font-weight: bold; color: #FF5722;">📊 **Low 그룹 분석**</span>
+    <br><br>
+    <strong style="font-size: 24px;">조건 플래그:</strong><br>
+    <ul style="font-size: 20px;">
+      <li>flag_low_qual: 4</li>
+      <li>flag_good_condition: 30</li>
+      <li>flag_low_area: 24</li>
+      <li>flag_low_remod: 59</li>
+      <li>flag_low_density: 131</li>
+      <li>flag_low_amenities: 10</li>
+    </ul>
+    <br>
+    <strong style="font-size: 24px;">Score 분포:</strong><br>
+    <ul style="font-size: 20px;">
+      <li>0: 133</li>
+      <li>1: 155</li>
+      <li>2: 30</li>
+      <li>3: 13</li>
+      <li>4: 1</li>
+    </ul>
+    <br>
+    <strong style="font-size: 24px;">Score ≥ 3인 건수: 14건</strong>
+  </div>
+</div>
+"""
+
+display(HTML(html_table))
+
+```
+
+# 3장
+
+## Row {height=30%}
+### {width=50%}
+
+<div style="border: 2px solid #DC143C; border-radius: 15px; padding: 15px; background-color: #fff5f5;">
+  <span style="font-size: 25px; font-weight: bold; color: #DC143C;">
+    ❗ 조건 플래그 결과
+  </span><br><br>
+  72건의 허위매물 의심 후보 추출 <br>
+  우측 지도를 통해 그룹별 허위매물 분포 확인 가능함
+  <br><br>
+
+</div>
+
+```{python}
+import pandas as pd
+
+# suspect_df에서 필요한 열만
+suspect_neighborhoods_df = suspect_df[['Neighborhood', 'price_level']].copy()
+
+# HTML로 변환
+suspect_neighborhoods_html = suspect_neighborhoods_df.to_html(index=False)
+
+# 스크롤 가능한 스타일 입혀서 출력
+from IPython.display import HTML, display
+
+display(HTML(f"""
+<div style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px;">
+{suspect_neighborhoods_html}
+</div>
+"""))
+
+```
+
+
+### {width=50%}
+
+```{python}
+import plotly.express as px
+
+center = {
+    "lat": suspect_df["Latitude"].mean(),
+    "lon": suspect_df["Longitude"].mean()
+}
+
+# 허위매물만 필터링 (suspect_flag가 True인 데이터만)
+suspect_only_df = suspect_df[suspect_df['suspect_flag'] == True]
+
+fig = px.scatter_mapbox(
+    suspect_only_df,  # 허위매물 데이터만 시각화
+    lat="Latitude",
+    lon="Longitude",
+    color="price_level",  # 가격 수준에 따라 색상 구분
+    size="SalePrice",  # 마커 크기는 판매 가격에 따라 설정
+    hover_name="Neighborhood",
+    hover_data=["SalePrice", "GrLivArea"],
+    labels={
+        "Latitude": "위도",
+        "Longitude": "경도",
+        "price_level": "동네 가격 수준",
+        "Neighborhood": "지역(동네)",
+        "SalePrice": "판매 가격($)",
+        "GrLivArea": "거실 면적(ft²)"
+    },
+    zoom=12,                    
+    center=center,               
+    height=600,
+    mapbox_style="open-street-map",
+    title="Ames Housing: Price Level by Neighborhood (허위매물만)"
+)
+
+fig.show()
+
+```
+
+
+
+
+
+
+# 4장
+
+## 회귀분석 과정 설명
+
+회귀분석 모델을 적용하여 허위매물을 찾아낼 경우, 점수제로 추려진 허위매물과 무엇이 같고, 무엇이 다른지 비교가능
+
+1.  종속변수: 'SalePrice' <br> 독립변수: 'OverallQual', 'OverallCond', 'GrLivArea', 'YearRemodAdd', 'RoomDensity', 'amenities' <br> 점수제에서 사용했던 6가지 조건에서 독립변수를 가져옴. 이를 통해 점수제 방식과 비교가 가능함.
+
+<br>
+
+2.  모든 변수의 영향을 유지하기 위해 Ridge 회귀 적용. <br> 또한 데이터를 학습용 80%, 테스트용 20%로 분리하고, 5-fold 교차 검증 수행. <br> 교차 검증을 통해 모델의 안정성을 확보하고, 다양한 정규화 강도(α)에서 테스트하여 최적의 예측 성능을 가진 모델을 선택함. <br> 성능 평가 지표로 'neg_mean_squared_error'(음의 평균 제곱 오차)를 사용.<br> Python의 scikit-learn에서는 점수가 높을수록 좋은 모델로 평가하는 규칙이 있어 오차 지표를 음수화하여 사용.
+
+<br>
+
+3.  허위매물 판별을 위해 실제가격과 예측가격의 차이(잔차)를 계산하고, 하위 2.8%(72/2579)를 허위매물로 분류. <br> 이는 점수제에서 발견한 허위매물 수와 동일한 비율을 적용하여 두 방법론의 결과를 직접 비교할 수 있게 함.
+
+<br>
+
+4.  각 가격 수준(Low, Mid, High) 그룹별로 별도의 모델을 구축하여 가격대별 특성을 반영한 허위매물 탐지가 가능하도록 함.
+
+##  {.tabset}
+
+### Low 그룹
+
+::: card
+```{python}
+
+import numpy as np
+import pandas as pd
+from sklearn.linear_model import RidgeCV
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import r2_score, mean_squared_error
+import plotly.express as px
+
+# 사용할 6개 피처와 타겟 정의
+features = [
+    'OverallQual',
+    'OverallCond',
+    'GrLivArea',
+    'YearRemodAdd',
+    'RoomDensity',
+    'amenities'
+]
+target = 'SalePrice'
+
+level = 'Low'
+df_lvl = df[df['price_level'] == level].copy()
+
+X = df_lvl[features]
+y = df_lvl[target]
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+ridge = RidgeCV(alphas=np.logspace(-4, 1, 10), cv=5, scoring='neg_mean_squared_error')
+ridge.fit(X_train, y_train)
+
+# — 예측 및 잔차 계산 —
+df_lvl['predicted'] = ridge.predict(X)
+df_lvl['residual']  = df_lvl['SalePrice'] - df_lvl['predicted']
+thresh = df_lvl['residual'].quantile(72/2579)
+df_lvl['ridge_flag'] = df_lvl['residual'] <= thresh
+
+
+#— 설명력(R²) 및 최적 α 계산·출력 —
+r2    = r2_score(y, ridge.predict(X))
+alpha = ridge.alpha_
+print(f"설명력 (R²): {r2:.3f}")
+print(f"최적 α (alpha): {alpha:.3g}/n")
+
+
+import plotly.express as px
+
+def make_figure(df, level):
+    # 1) scatter - 실제가격(x축)과 예측가격(y축) 설정
+    fig = px.scatter(
+        df,
+        x='SalePrice',     
+        y='predicted',     
+        color='ridge_flag',
+        color_discrete_map={True: 'purple', False: 'lightgray'},
+        opacity=0.7,
+        title=f"실제가격 vs 예측가격 ({level}) - Ridge Regression",
+        labels={
+            'SalePrice': '실제가격($)',
+            'predicted': '예측가격($)',
+            'ridge_flag': '허위매물 여부'
+        }
+    )
+    
+    # 2) 대각선 (y = x)
+    mn = min(df['predicted'].min(), df['SalePrice'].min())
+    mx = max(df['predicted'].max(), df['SalePrice'].max())
+    fig.add_shape(
+        type='line',
+        x0=mn, y0=mn, x1=mx, y1=mx,
+        line=dict(color='black', dash='dash')
+    )
+    
+    # 3) 축 제목 & 1:1 비율 고정 및 범례 개선
+    fig.update_layout(
+        width=650,         
+        height=600,
+        margin=dict(l=80, r=60, t=80, b=80),
+        xaxis=dict(
+            title='실제가격',
+            scaleanchor='y', 
+            scaleratio=1,
+            title_standoff=15
+        ),
+        yaxis=dict(
+            title='예측가격',
+            title_standoff=15
+        ),
+        # 4) 범례 위치와 형식 개선 ('itemname' 속성 제거)
+        legend=dict(
+            title=None,  # 범례 제목 제거
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01,
+            bgcolor="rgba(255, 255, 255, 0.8)",
+            bordercolor="Black",
+            borderwidth=1,
+            font=dict(size=12)
+        )
+    )
+    
+    # 5) 범례 텍스트 직접 업데이트
+    new_names = {'True': '허위매물 의심', 'False': '정상'}
+    fig.for_each_trace(lambda t: t.update(name = new_names[t.name]))
+    
+    return fig
+
+# 사용
+fig = make_figure(df_lvl, level)
+fig
+```
+
+### Low 그룹 허위매물 정리
+
+```{python}
+# 1) 통계 계산
+flagged = df_lvl[df_lvl['ridge_flag']]
+total   = len(df_lvl)
+count   = len(flagged)
+pct     = count/total*100
+
+# 4) 결과 출력
+print(f"▶ 전체 샘플 수: {total}개")
+print(f"▶ 허위매물 수: {count}개 ({pct:.1f}%)/n")
+```
+
+#### 허위매물 목록 (정렬 기준 : residual)
+
+```{python}
+# 5) 목록
+flagged[['Neighborhood','SalePrice','predicted','residual']].sort_values('residual')
+
+```
+
+#### Low 그룹 허위매물 위치 지도
+
+```{python}
+
+# 1) 허위매물 의심만 필터링 (이미 flagged에 저장됨)
+suspects = flagged.copy()
+
+# 2) 지도 중심 좌표 계산
+center = {
+    "lat": suspects["Latitude"].mean(),
+    "lon": suspects["Longitude"].mean()
+}
+
+# 3) Mapbox 산점도 그리기
+fig = px.scatter_mapbox(
+    suspects,
+    lat="Latitude",
+    lon="Longitude",
+    hover_name="Neighborhood",
+    hover_data=["SalePrice","predicted","residual"],
+    labels={
+        "Latitude": "위도",
+        "Longitude": "경도",
+        "price_level": "동네 가격 수준",
+        "Neighborhood": "지역(동네)",
+        "SalePrice": "실제 가격($)",
+        "predicted": "예측 가격($)",
+        "residual": "잔차(실제 가격 - 예측 가격)"
+    },
+    color_discrete_sequence=["purple"],
+    zoom=11,
+    center=center,
+    width=600,    # 캔버스 가로(px)
+    height=600,    # 캔버스 세로(px)
+    mapbox_style="open-street-map",
+)
+
+fig
+```
+:::
+
+### Mid 그룹
+
+::: card
+```{python}
+
+level = 'Mid'
+df_lvl = df[df['price_level'] == level].copy()
+
+X = df_lvl[features]
+y = df_lvl[target]
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+ridge = RidgeCV(alphas=np.logspace(-4, 1, 10), cv=5, scoring='neg_mean_squared_error')
+ridge.fit(X_train, y_train)
+
+df_lvl['predicted'] = ridge.predict(X)
+df_lvl['residual']  = df_lvl['SalePrice'] - df_lvl['predicted']
+thresh = df_lvl['residual'].quantile(72/2579)
+df_lvl['ridge_flag'] = df_lvl['residual'] <= thresh
+
+#— 설명력(R²) 및 최적 α 계산·출력 —
+r2    = r2_score(y, ridge.predict(X))
+alpha = ridge.alpha_
+print(f"설명력 (R²): {r2:.3f}")
+print(f"최적 α (alpha): {alpha:.3g}/n")
+
+
+
+import plotly.express as px
+
+def make_figure(df, level):
+    # 1) scatter - 실제가격(x축)과 예측가격(y축) 설정
+    fig = px.scatter(
+        df,
+        x='SalePrice',     
+        y='predicted',     
+        color='ridge_flag',
+        color_discrete_map={True: 'purple', False: 'lightgray'},
+        opacity=0.7,
+        title=f"실제가격 vs 예측가격 ({level}) - Ridge Regression",
+        labels={
+            'SalePrice': '실제가격($)',
+            'predicted': '예측가격($)',
+            'ridge_flag': '허위매물 여부'
+        }
+    )
+    
+    # 2) 대각선 (y = x)
+    mn = min(df['predicted'].min(), df['SalePrice'].min())
+    mx = max(df['predicted'].max(), df['SalePrice'].max())
+    fig.add_shape(
+        type='line',
+        x0=mn, y0=mn, x1=mx, y1=mx,
+        line=dict(color='black', dash='dash')
+    )
+    
+    # 3) 축 제목 & 1:1 비율 고정 및 범례 개선
+    fig.update_layout(
+        width=650,         
+        height=600,
+        margin=dict(l=80, r=60, t=80, b=80),
+        xaxis=dict(
+            title='실제가격',
+            scaleanchor='y', 
+            scaleratio=1,
+            title_standoff=15
+        ),
+        yaxis=dict(
+            title='예측가격',
+            title_standoff=15
+        ),
+        # 4) 범례 위치와 형식 개선 ('itemname' 속성 제거)
+        legend=dict(
+            title=None,  # 범례 제목 제거
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01,
+            bgcolor="rgba(255, 255, 255, 0.8)",
+            bordercolor="Black",
+            borderwidth=1,
+            font=dict(size=12)
+        )
+    )
+    
+    # 5) 범례 텍스트 직접 업데이트
+    new_names = {'True': '허위매물 의심', 'False': '정상'}
+    fig.for_each_trace(lambda t: t.update(name = new_names[t.name]))
+    
+    return fig
+
+# 사용
+fig = make_figure(df_lvl, level)
+fig
+```
+
+### Mid 그룹 허위매물 정리
+
+```{python}
+# 1) 통계 계산
+flagged = df_lvl[df_lvl['ridge_flag']]
+total   = len(df_lvl)
+count   = len(flagged)
+pct     = count/total*100
+
+# 4) 결과 출력
+print(f"▶ 전체 샘플 수: {total}개")
+print(f"▶ 허위매물 수: {count}개 ({pct:.1f}%)/n")
+
+```
+
+#### 허위매물 목록 (정렬 기준 : residual)
+
+```{python}
+# 5) 목록
+flagged[['Neighborhood','SalePrice','predicted','residual']].sort_values('residual')
+```
+
+#### Mid 그룹 허위매물 위치 지도
+
+```{python}
+
+# 1) 허위매물 의심만 필터링 (이미 flagged에 저장됨)
+suspects = flagged.copy()
+
+# 2) 지도 중심 좌표 계산
+center = {
+    "lat": suspects["Latitude"].mean(),
+    "lon": suspects["Longitude"].mean()
+}
+
+# 3) Mapbox 산점도 그리기
+fig = px.scatter_mapbox(
+    suspects,
+    lat="Latitude",
+    lon="Longitude",
+    hover_name="Neighborhood",
+    hover_data=["SalePrice","predicted","residual"],
+    labels={
+        "Latitude": "위도",
+        "Longitude": "경도",
+        "price_level": "동네 가격 수준",
+        "Neighborhood": "지역(동네)",
+        "SalePrice": "실제 가격($)",
+        "predicted": "예측 가격($)",
+        "residual": "잔차(실제 가격 - 예측 가격)"
+    },
+    color_discrete_sequence=["purple"],
+    zoom=11,
+    center=center,
+    width=600,    # 캔버스 가로(px)
+    height=600,    # 캔버스 세로(px)
+    mapbox_style="open-street-map",
+)
+
+fig
+```
+:::
+
+### High 그룹
+
+::: card
+```{python}
+
+level = 'High'
+df_lvl = df[df['price_level'] == level].copy()
+
+X = df_lvl[features]
+y = df_lvl[target]
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+ridge = RidgeCV(alphas=np.logspace(-4, 1, 10), cv=5, scoring='neg_mean_squared_error')
+ridge.fit(X_train, y_train)
+
+df_lvl['predicted'] = ridge.predict(X)
+df_lvl['residual']  = df_lvl['SalePrice'] - df_lvl['predicted']
+thresh = df_lvl['residual'].quantile(72/2579)
+df_lvl['ridge_flag'] = df_lvl['residual'] <= thresh
+
+
+#— 설명력(R²) 및 최적 α 계산·출력 —
+r2    = r2_score(y, ridge.predict(X))
+alpha = ridge.alpha_
+print(f"설명력 (R²): {r2:.3f}")
+print(f"최적 α (alpha): {alpha:.3g}/n")
+
+
+import plotly.express as px
+
+def make_figure(df, level):
+    # 1) scatter - 실제가격(x축)과 예측가격(y축) 설정
+    fig = px.scatter(
+        df,
+        x='SalePrice',     
+        y='predicted',     
+        color='ridge_flag',
+        color_discrete_map={True: 'purple', False: 'lightgray'},
+        opacity=0.7,
+        title=f"실제가격 vs 예측가격 ({level}) - Ridge Regression",
+        labels={
+            'SalePrice': '실제가격($)',
+            'predicted': '예측가격($)',
+            'ridge_flag': '허위매물 여부'
+        }
+    )
+    
+    # 2) 대각선 (y = x)
+    mn = min(df['predicted'].min(), df['SalePrice'].min())
+    mx = max(df['predicted'].max(), df['SalePrice'].max())
+    fig.add_shape(
+        type='line',
+        x0=mn, y0=mn, x1=mx, y1=mx,
+        line=dict(color='black', dash='dash')
+    )
+    
+    # 3) 축 제목 & 1:1 비율 고정 및 범례 개선
+    fig.update_layout(
+        width=650,         
+        height=600,
+        margin=dict(l=80, r=60, t=80, b=80),
+        xaxis=dict(
+            title='실제가격',
+            scaleanchor='y', 
+            scaleratio=1,
+            title_standoff=15
+        ),
+        yaxis=dict(
+            title='예측가격',
+            title_standoff=15
+        ),
+        # 4) 범례 위치와 형식 개선 ('itemname' 속성 제거)
+        legend=dict(
+            title=None,  # 범례 제목 제거
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01,
+            bgcolor="rgba(255, 255, 255, 0.8)",
+            bordercolor="Black",
+            borderwidth=1,
+            font=dict(size=12)
+        )
+    )
+    
+    # 5) 범례 텍스트 직접 업데이트
+    new_names = {'True': '허위매물 의심', 'False': '정상'}
+    fig.for_each_trace(lambda t: t.update(name = new_names[t.name]))
+    
+    return fig
+
+# 사용
+fig = make_figure(df_lvl, level)
+fig
+```
+
+### High 그룹 허위매물 정리
+
+```{python}
+# 1) 통계 계산
+flagged = df_lvl[df_lvl['ridge_flag']]
+total   = len(df_lvl)
+count   = len(flagged)
+pct     = count/total*100
+
+# 4) 결과 출력
+print(f"▶ 전체 샘플 수: {total}개")
+print(f"▶ 허위매물 수: {count}개 ({pct:.1f}%)/n")
+
+```
+
+#### 허위매물 목록 (정렬 기준 : residual)
+
+```{python}
+# 5) 목록
+flagged[['Neighborhood','SalePrice','predicted','residual']].sort_values('residual')
+```
+
+#### High 그룹 허위매물 위치 지도
+
+```{python}
+
+# 1) 허위매물 의심만 필터링 (이미 flagged에 저장됨)
+suspects = flagged.copy()
+
+# 2) 지도 중심 좌표 계산
+center = {
+    "lat": suspects["Latitude"].mean(),
+    "lon": suspects["Longitude"].mean()
+}
+
+# 3) Mapbox 산점도 그리기
+fig = px.scatter_mapbox(
+    suspects,
+    lat="Latitude",
+    lon="Longitude",
+    hover_name="Neighborhood",
+    hover_data=["SalePrice","predicted","residual"],
+    labels={
+        "Latitude": "위도",
+        "Longitude": "경도",
+        "price_level": "동네 가격 수준",
+        "Neighborhood": "지역(동네)",
+        "SalePrice": "실제 가격($)",
+        "predicted": "예측 가격($)",
+        "residual": "잔차(실제 가격 - 예측 가격)"
+    },
+    color_discrete_sequence=["purple"],
+    zoom=11,
+    center=center,
+    width=600,    # 캔버스 가로(px)
+    height=600,    # 캔버스 세로(px)
+    mapbox_style="open-street-map",
+)
+
+fig
+```
+:::
+
+```{python}
+
+import numpy as np
+import pandas as pd
+from sklearn.linear_model import RidgeCV
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import r2_score, mean_squared_error
+import plotly.express as px
+
+# 사용할 6개 피처와 타겟 정의 피처: 속성
+features = [
+    'OverallQual',
+    'OverallCond',
+    'GrLivArea',
+    'YearRemodAdd',
+    'RoomDensity',
+    'amenities'
+]
+target = 'SalePrice'
+
+# price_level별 모델 학습, 검증, 예측, 시각화
+for level in ['Low', 'Mid', 'High']:
+    # 1) 해당 그룹 데이터 분리
+    df_lvl = df[df['price_level'] == level].copy()
+    X = df_lvl[features]
+    y = df_lvl[target]
+    
+    # 2) hold-out test set 생성 (20%)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+    
+    # 3) RidgeCV 모델 학습 (내부 5-fold CV 포함)
+    # ElasticNet과 달리 Ridge는 l1_ratio가 없고 alpha만 튜닝합니다
+    ridge = RidgeCV(
+        alphas=np.logspace(-4, 1, 10),  # 다양한 alpha 값 검사 (10개) 과적합을 방지하기 위해 페널티 부여 클수록 규제 강하게
+        cv=5,                           # 5-fold 교차검증 5번 과적합 방지 한번만하면 일반적인 패턴 파악 못하고 훈련 데이터만 적합한 결과를 만들기 때문
+        scoring='neg_mean_squared_error' # MSE를 최소화하는 alpha 선택
+    )
+    ridge.fit(X_train, y_train)
+    
+    # 4) Test set 성능 평가 모델의 일반화 능력 평가를 위한test set 
+    y_test_pred = ridge.predict(X_test) # ridge모델로 테스트 데이터 예측 수행
+    r2   = r2_score(y_test, y_test_pred) # 모델이 실제 데이터 분산을 얼마나 잘 설명하는지 나타내는 지표
+    rmse = np.sqrt(mean_squared_error(y_test, y_test_pred))
+    
+    
+    # 모델의 계수 확인 (Ridge는 모든 변수의 계수를 유지함)
+    coefficients = pd.DataFrame({
+        'Feature': features,
+        'Coefficient': ridge.coef_
+    }).sort_values('Coefficient', ascending=False)
+
+    
+    # 5) 전체 그룹 데이터에 대해 예측 및 residual 계산
+    df_lvl['predicted'] = ridge.predict(X)
+    df_lvl['residual']  = df_lvl['SalePrice'] - df_lvl['predicted']
+    
+    # 6) 이상치(허위매물) 플래그: residual 하위 25% 이하면 True
+    thresh = df_lvl['residual'].quantile(72/2579) # 우리가 전체 대비 점수제로 뽑은 매물후보 수의비율로 확인 
+    df_lvl['ridge_flag'] = df_lvl['residual'] <= thresh
+    
+    # 7) 인터랙티브 산점도
+    fig = px.scatter(
+        df_lvl,
+        x='SalePrice',
+        y='predicted',
+        color='ridge_flag',
+        color_discrete_map={True: 'red', False: 'lightgray'},
+        title=f'Actual vs. Predicted ({level}) - Ridge Regression',
+        labels={'SalePrice':'실제가격','predicted':'예측가격','ridge_flag':'허위매물 의심'},
+        opacity=0.7
+    )
+
+# (1) 사용할 피처·타겟 재확인
+features = ['OverallQual', 'OverallCond', 'GrLivArea', 'YearRemodAdd', 'RoomDensity', 'amenities']
+target   = 'SalePrice'
+
+# (2) 플래그 컬럼 초기화
+df['elastic_flag'] = False
+df['ridge_flag']   = False
+
+# (3) RidgeCV로 전체 데이터에 대해 플래그 계산
+for level in ['Low','Mid','High']:
+    mask = df['price_level']==level
+    X = df.loc[mask, features]
+    y = df.loc[mask, target]
+    ridge = RidgeCV(
+        alphas=np.logspace(-4, 1, 10),
+        cv=5,
+        scoring='neg_mean_squared_error'
+    )
+    ridge.fit(X, y)
+    preds = ridge.predict(X)
+    resid = y - preds
+    thresh = resid.quantile(72/2579)
+    df.loc[mask, 'ridge_flag'] = resid <= thresh
+
+# (4) 인덱스 집합으로 변환
+score_set   = set(df.index[df['suspect_flag']])
+ridge_set   = set(df.index[df['ridge_flag']])
+
+```
+
+# 5. 결론
+
+## Row
+
+```{python}
+#| content: valuebox
+#| title: "점수제 허위매물"
+#| icon: house
+#| color: "#FFD700"
+dict(
+  value = "72개",
+  )
+```
+
+```{python}
+#| content: valuebox
+#| title: "회귀분석 허위매물"
+#| icon: house
+#| color: "#FFD700"
+dict(
+  value = "73개",
+  )
+```
+
+```{python}
+#| content: valuebox
+#| title: "최종 선정 허위매물"
+#| icon: exclamation-triangle
+#| color: "#FF0000"
+dict(
+  value = "8개",
+  style = "font-size: 10px;"
+  )
+```
+
+::: {.column width="50%"}
+## Row {.tabset}
+
+### 점수제
+
+```{python}
+import folium
+common_df2 = df.loc[list(score_set)]
+# 좌표 결측치 제거
+common_df2_1 = common_df2.dropna(subset=["Latitude", "Longitude"])
+
+# 지도 중심 좌표 설정
+center_lat = common_df2_1["Latitude"].mean()
+center_lon = common_df2_1["Longitude"].mean()
+
+# folium 지도 객체 생성
+fig7 = folium.Map(location=[center_lat, center_lon], zoom_start=12)
+
+# price_level별 색상 지정
+color_map = {
+    'Low': 'blue',
+    'Mid': 'green',
+    'High': 'red'
+}
+
+# 마커 추가 (자동 출력 억제)
+for _, row in common_df2_1.iterrows():
+    popup_text = f"""
+    <b>지역:</b> {row['Neighborhood']}<br>
+    <b>매매가:</b> ${row['SalePrice']:,}<br>
+    <b>지상면적:</b> {row['GrLivArea']} sqft<br>
+    <b>마감 품질:</b> {row['OverallQual']}<br>
+    <b>전반 상태:</b> {row['OverallCond']}<br>
+    <b>편의시설 수:</b> {row['amenities']}<br>
+    <b>리모델링 연도:</b> {row['YearRemodAdd']}<br>
+    <b>점수제 점수:</b> {row['score']}
+    """
+    _ = folium.Marker(
+        location=[row['Latitude'], row['Longitude']],
+        popup=folium.Popup(popup_text, max_width=250),
+        icon=folium.Icon(
+            color=color_map.get(row['price_level'], 'gray'),
+            icon='exclamation-sign',
+            prefix='glyphicon'
+        )
+    ).add_to(fig7)
+
+# 지도 출력
+fig7
+```
+
+### 회귀분석
+
+```{python}
+import folium
+common_df3 = df.loc[list(ridge_set)]
+# 좌표 결측치 제거
+common_df3_1 = common_df3.dropna(subset=["Latitude", "Longitude"])
+
+# 지도 중심 좌표 설정
+center_lat = common_df3_1["Latitude"].mean()
+center_lon = common_df3_1["Longitude"].mean()
+
+# folium 지도 객체 생성
+fig8 = folium.Map(location=[center_lat, center_lon], zoom_start=12)
+
+# price_level별 색상 지정
+color_map = {
+    'Low': 'blue',
+    'Mid': 'green',
+    'High': 'red'
+}
+
+# 마커 추가 (자동 출력 억제)
+for _, row in common_df3_1.iterrows():
+    popup_text = f"""
+    <b>지역:</b> {row['Neighborhood']}<br>
+    <b>매매가:</b> ${row['SalePrice']:,}<br>
+    <b>지상면적:</b> {row['GrLivArea']} sqft<br>
+    <b>마감 품질:</b> {row['OverallQual']}<br>
+    <b>전반 상태:</b> {row['OverallCond']}<br>
+    <b>편의시설 수:</b> {row['amenities']}<br>
+    <b>리모델링 연도:</b> {row['YearRemodAdd']}<br>
+    <b>점수제 점수:</b> {row['score']}
+    """
+    _ = folium.Marker(
+        location=[row['Latitude'], row['Longitude']],
+        popup=folium.Popup(popup_text, max_width=250),
+        icon=folium.Icon(
+            color=color_map.get(row['price_level'], 'gray'),
+            icon='exclamation-sign',
+            prefix='glyphicon'
+        )
+    ).add_to(fig8)
+
+# 지도 출력
+fig8
+```
+
+### 공통허위매물
+
+```{python}
+
+import folium
+from IPython.display import display
+
+# 공통 허위매물만 추출 (점수제 + Ridge 회귀 모두 해당)
+common_df = df.loc[list(score_set & ridge_set)].copy()
+
+# 좌표 결측치 제거
+common_df1 = common_df.dropna(subset=["Latitude", "Longitude"])
+
+# 지도 중심 좌표 설정
+center_lat = common_df1["Latitude"].mean()
+center_lon = common_df1["Longitude"].mean()
+
+# folium 지도 객체 생성
+fig6 = folium.Map(location=[center_lat, center_lon], zoom_start=12)
+
+# price_level별 색상 지정
+color_map = {
+    'Low': 'blue',
+    'Mid': 'green',
+    'High': 'red'
+}
+
+# 마커 추가
+for _, row in common_df1.iterrows():
+    popup_text = f"""
+    <b>지역:</b> {row['Neighborhood']}<br>
+    <b>매매가:</b> ${row['SalePrice']:,}<br>
+    <b>지상면적:</b> {row['GrLivArea']} sqft<br>
+    <b>마감 품질:</b> {row['OverallQual']}<br>
+    <b>전반 상태:</b> {row['OverallCond']}<br>
+    <b>편의시설 수:</b> {row['amenities']}<br>
+    <b>리모델링 연도:</b> {row['YearRemodAdd']}<br>
+    <b>점수제 점수:</b> {row['score']}
+    """
+    _ = folium.Marker(
+        location=[row['Latitude'], row['Longitude']],
+        popup=folium.Popup(popup_text, max_width=250),
+        icon=folium.Icon(
+            color=color_map.get(row['price_level'], 'gray'),
+            icon='exclamation-sign',
+            prefix='glyphicon'
+        )
+    ).add_to(fig6)
+
+# 지도 출력
+display(fig6)
+```
+:::
+
+```{python}
+cols = [
+    'Neighborhood','PID', 'SalePrice', 'score',
+    'OverallQual', 'OverallCond', 'GrLivArea',
+    'YearRemodAdd', 'RoomDensity', 'amenities',
+]
+common_df_selected = common_df[cols]
+common_df_selected.sort_values(by='Neighborhood')
+
+```
+
+📍 서로 다른 탐지 관점을 가지고 있기 때문에 두가지 방법의 결과가 상이하다고 판단
+
+## Row {width="100%"}
+
+::: {style="border: 2px solid #DC143C; border-radius: 10px; padding: 15px; background-color: #fff5f5;"}
+[ 🏠 최종 결론 ]{style="font-size: 20px; font-weight: bold; color: #DC143C;"}<br><br> 점수제를 통한 허위매물 탐지는 <b>직관적인</b> 기준에 기반해 빠르게 의심 매물을 걸러낼 수 있으며,<br> 회귀 분석을 통한 방법은 <b>패턴분석</b>을 통해 <b>정교한 판단</b>을 할 수 있습니다.<br><br>
+
+두 가지 방법을 <b style="color:#DC143C;">보완적으로 함께 활용</b>할 경우,<br> 단일 방법보다 <b>더 높은 신뢰도로 허위매물 가능성이 높은 대상</b>을 선별할 수 있다고 판단됩니다.
+:::

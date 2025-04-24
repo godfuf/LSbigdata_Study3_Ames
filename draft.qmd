@@ -1,13 +1,15 @@
---- 
+---
 title: "Ames Housing: 허위매물 탐지 프로젝트"
 author: '일단잡1조(송성필, 홍주형, 편서영, 양현준)'
 format: 
   dashboard:
     theme: sandstone
     scrolling: True
-    logo: project/group1_project/imagebox/nofakehouse.png
+    logo: imagebox/nofakehouse.png
     freeze: true
---- 
+---
+
+
 ```{python}
 import numpy as np
 import pandas as pd
@@ -16,6 +18,7 @@ import seaborn as sns
 from sklearn.linear_model import LassoCV
 from sklearn.model_selection import train_test_split
 import plotly.express as px
+
 plt.rcParams['font.family'] = 'Malgun Gothic'
 plt.rcParams['axes.unicode_minus'] = False
 pd.set_option('display.max_columns', None)
@@ -78,67 +81,76 @@ low_df  = df[df['price_level'] == 'Low'].copy()
 
 ```
 
+#  {.sidebar}
 
-# {.sidebar}
+## \## [에임즈 인트로]{style="font-size: 14px;"}
 
-## ## <span style="font-size: 14px;">에임즈 인트로</span> 
-- 블라블라
+-   블라블라
 
-## <span style="font-size: 14px;">연속형 > 박스플롯 / 범주형 > 그래프, 조건별 결과 </span>
+## [연속형 \> 박스플롯 / 범주형 \> 그래프, 조건별 결과 ]{style="font-size: 14px;"}
 
+1.  
 
-1. 
-2. 
-3. 
-4. 
+2.  
 
-## <span style="font-size: 14px;">회귀모델</span>
+3.  
 
-1. 
-2. 
+4.  
 
-## <span style="font-size: 14px;">결론 및 보완점</span>
+## [회귀모델]{style="font-size: 14px;"}
 
-1. 
-2. 
-3. 결론
-4. 분석의 제한점
+1.  
+
+2.  
+
+## [결론 및 보완점]{style="font-size: 14px;"}
+
+1.  
+
+2.  
+
+3.  결론
+
+4.  분석의 제한점
 
 # 개요
 
-## Row {height=15%}
+## Row {height="15%"}
 
-### Column {width=50%}
+### Column {width="50%"}
 
-:::{.card}
+::: card
 
-### <span style="font-size: 30px;">어디 있니 허위매물</span>
+### [어디 있니 허위매물]{style="font-size: 30px;"}
 
-<img src="project/group1_project/imagebox/igotyou.png" alt="잡았다 요놈" style="width: 100%;">
+<img src="imagebox/igotyou.png" alt="잡았다 요놈" style="width: 100%;"/>
 
-- 에임스(Ames) 도시의 허위매물 탐지
+-   에임스(Ames) 도시의 허위매물 탐지
+
 :::
 
-### Column {width=50%}
+### Column {width="50%"}
 
-:::{.card}
+::: card
 
 ### Ames 도시 특징
 
-- 위치: 미국 아이오와주 중부, 디모인 북쪽 약 50km
-- 인구: 약 66,000명 (2020년 기준)
-- 특징: 
-1. 아이오와 주립대학교 소재 (학생 수 약 30,000명, 전체 인구의 약 45%)
-2. 안정된 주거 환경과 활발한 임대 시장 (임대 가구 비율 약 55%)
-3. 젊은 인구 비중 높고 교육 중심 도시 (20~34세 인구 비중 약 40%)
+-   위치: 미국 아이오와주 중부, 디모인 북쪽 약 50km
+-   인구: 약 66,000명 (2020년 기준)
+-   특징:
+
+1.  아이오와 주립대학교 소재 (학생 수 약 30,000명, 전체 인구의 약 45%)
+2.  안정된 주거 환경과 활발한 임대 시장 (임대 가구 비율 약 55%)
+3.  젊은 인구 비중 높고 교육 중심 도시 (20\~34세 인구 비중 약 40%)
 
 :::
 
-## Row {height=35%}
+## Row {height="35%"}
 
-:::{.card}
+::: card
 
 ### Ames 위치 및 지역 분포
+
 ```{python}
 import plotly.express as px
 # 색상 맵핑
@@ -186,71 +198,67 @@ fig_map.update_layout(
 
 ```
 
-- Ames 지역의 평균 주택가격 기준
-- 상·중·하로 분류
-- 각 점은 개별 주택을 의미
+-   Ames 지역의 평균 주택가격 기준
+-   상·중·하로 분류
+-   각 점은 개별 주택을 의미
 
 :::
 
-## Row {height=20%}
+## Row {height="20%"}
 
-:::
 
 ### 지역별 주택 가격 구간 분류
 
-| 가격 구간  | 평균 가격 범위 (USD) | 주요 지역 |
-|------------|----------------------|-------------------------------|
+| 가격 구간 | 평균 가격 범위 (USD) | 주요 지역 |
+|----|----|----|
 | 🔺 **고가 지역 (High)** | ≥ 217,676 | NoRidge, NridgHt, StoneBr, Veenker, Greens, Timber |
-| ⚖️ **중간 지역 (Mid)** | 136,144 ~ 217,675 | CollgCr, Mitchel, NAmes, SawyerW, OldTown, Crawfor, Edwards |
+| ⚖️ **중간 지역 (Mid)** | 136,144 \~ 217,675 | CollgCr, Mitchel, NAmes, SawyerW, OldTown, Crawfor, Edwards |
 | 🔻 **저가 지역 (Low)** | ≤ 136,143 | MeadowV, BrDale, IDOTRR, Landmrk, Blueste |
 
-> - `Neighborhood`별 평균 `SalePrice`를 기준으로 분위수(Quantile)를 계산하여 고가/중간/저가로 분류함  
-> - 상위 25% 이상: 고가 지역, 중위 50%: 중간 지역, 하위 25% 이하: 저가 지역
+> -   `Neighborhood`별 평균 `SalePrice`를 기준으로 분위수(Quantile)를 계산하여 고가/중간/저가로 분류함\
+> -   상위 25% 이상: 고가 지역, 중위 50%: 중간 지역, 하위 25% 이하: 저가 지역
 
-:::
 
-## Row {height=30%}
+## Row {height="30%"}
 
-### Column {width=5%}
-
-:::{.card}
+### card
 
 🔺 고가 지역 (High)
 
-- 평균 주택 가격이 높고 고급 주택 밀집
-- 최신 건축/리모델링, 품질 우수
-- 넓은 면적과 부대시설 완비
-- 고급 단독주택 중심, 조용한 환경
-- 거래량은 적지만 희소성 존재
+-   평균 주택 가격이 높고 고급 주택 밀집
+-   최신 건축/리모델링, 품질 우수
+-   넓은 면적과 부대시설 완비
+-   고급 단독주택 중심, 조용한 환경
+-   거래량은 적지만 희소성 존재
+
 :::
 
-### Column {width=5%}
-
-:::{.card}
+###  card
 
 ⚖️ 중간 지역 (Mid)
 
-- Ames 평균 수준 주택 분포
-- 다양한 주거 형태(단독, 타운하우스 등)
-- 젊은층/대학생 임대 수요 존재
-- 인프라 양호, 가족 선호 지역
-- 거래량 많고 시장 내 활발
+-   Ames 평균 수준 주택 분포
+-   다양한 주거 형태(단독, 타운하우스 등)
+-   젊은층/대학생 임대 수요 존재
+-   인프라 양호, 가족 선호 지역
+-   거래량 많고 시장 내 활발
 
 :::
 
-### Column {width=5%}
 
-:::{.card}
+###  card
 
 🔻 저가 지역 (Low)
 
-- 평균 주택 가격 낮고 일부 노후
-- 유지 관리 상태 중하 수준
-- 소형 임대 주택 비중 높음
-- 소음, 상업지 인접 등으로 선호도 낮음
-- 거래량 적고 정보 부족 
+-   평균 주택 가격 낮고 일부 노후
+-   유지 관리 상태 중하 수준
+-   소형 임대 주택 비중 높음
+-   소음, 상업지 인접 등으로 선호도 낮음
+-   거래량 적고 정보 부족
 
 :::
+
+
 
 
 # 2장
@@ -284,31 +292,6 @@ fig.show()
 ```
 
 :::
-
-```{python}
-
-# 각 그룹별 지역 목록 추출
-high_neighborhoods = df[df['price_level'] == 'High']['Neighborhood'].unique()
-mid_neighborhoods = df[df['price_level'] == 'Mid']['Neighborhood'].unique()
-low_neighborhoods = df[df['price_level'] == 'Low']['Neighborhood'].unique()
-
-# 각 그룹별 지역을 데이터프레임으로 생성하고, 가격 레벨을 추가
-high_df_neighborhoods = pd.DataFrame(high_neighborhoods, columns=['Neighborhood'])
-high_df_neighborhoods['Price_Level'] = 'High'
-
-mid_df_neighborhoods = pd.DataFrame(mid_neighborhoods, columns=['Neighborhood'])
-mid_df_neighborhoods['Price_Level'] = 'Mid'
-
-low_df_neighborhoods = pd.DataFrame(low_neighborhoods, columns=['Neighborhood'])
-low_df_neighborhoods['Price_Level'] = 'Low'
-
-# 세 개의 데이터프레임을 합침
-neighborhoods_df = pd.concat([high_df_neighborhoods, mid_df_neighborhoods, low_df_neighborhoods], ignore_index=True)
-
-# 출력
-neighborhoods_df
-
-```
 
 ## Row {.tabset}
 :::{.card}
@@ -634,12 +617,15 @@ center = {
     "lon": suspect_df["Longitude"].mean()
 }
 
+# 허위매물만 필터링 (suspect_flag가 True인 데이터만)
+suspect_only_df = suspect_df[suspect_df['suspect_flag'] == True]
+
 fig = px.scatter_mapbox(
-    suspect_df,
+    suspect_only_df,  # 허위매물 데이터만 시각화
     lat="Latitude",
     lon="Longitude",
-    color="price_level",
-    size="SalePrice",  # 마커 크기를 판매 가격에 따라 설정
+    color="price_level",  # 가격 수준에 따라 색상 구분
+    size="SalePrice",  # 마커 크기는 판매 가격에 따라 설정
     hover_name="Neighborhood",
     hover_data=["SalePrice", "GrLivArea"],
     labels={
@@ -651,46 +637,46 @@ fig = px.scatter_mapbox(
         "GrLivArea": "거실 면적(ft²)"
     },
     zoom=12,                    
-    center=center,              
+    center=center,               
     height=600,
     mapbox_style="open-street-map",
-    title="Ames Housing: Price Level by Neighborhood (확대)"
+    title="Ames Housing: Price Level by Neighborhood (허위매물만)"
 )
 
 fig.show()
 
 ```
 
+
+
+
+
+
 # 4장
 
 ## 회귀분석 과정 설명
 
-회귀분석 모델을 적용하여 허위매물을 찾아낼 경우,
-점수제로 추려진 허위매물과 무엇이 같고, 무엇이 다른지 비교가능
+회귀분석 모델을 적용하여 허위매물을 찾아낼 경우, 점수제로 추려진 허위매물과 무엇이 같고, 무엇이 다른지 비교가능
 
-1. 종속변수: 'SalePrice' <br>
-   독립변수: 'OverallQual', 'OverallCond', 'GrLivArea', 'YearRemodAdd', 'RoomDensity', 'amenities' <br>
-   점수제에서 사용했던 6가지 조건에서 독립변수를 가져옴. 이를 통해 점수제 방식과 비교가 가능함.
+1.  종속변수: 'SalePrice' <br> 독립변수: 'OverallQual', 'OverallCond', 'GrLivArea', 'YearRemodAdd', 'RoomDensity', 'amenities' <br> 점수제에서 사용했던 6가지 조건에서 독립변수를 가져옴. 이를 통해 점수제 방식과 비교가 가능함.
 
 <br>
 
-2. 모든 변수의 영향을 유지하기 위해 Ridge 회귀 적용. <br> 또한 데이터를 학습용 80%, 테스트용 20%로 분리하고, 5-fold 교차 검증 수행. <br> 교차 검증을 통해 모델의 안정성을 확보하고, 다양한 정규화 강도(α)에서 테스트하여 최적의 예측 성능을 가진 모델을 선택함. <br> 성능 평가 지표로 'neg_mean_squared_error'(음의 평균 제곱 오차)를 사용.<br> Python의 scikit-learn에서는 점수가 높을수록 좋은 모델로 평가하는 규칙이 있어 오차 지표를 음수화하여 사용.
+2.  모든 변수의 영향을 유지하기 위해 Ridge 회귀 적용. <br> 또한 데이터를 학습용 80%, 테스트용 20%로 분리하고, 5-fold 교차 검증 수행. <br> 교차 검증을 통해 모델의 안정성을 확보하고, 다양한 정규화 강도(α)에서 테스트하여 최적의 예측 성능을 가진 모델을 선택함. <br> 성능 평가 지표로 'neg_mean_squared_error'(음의 평균 제곱 오차)를 사용.<br> Python의 scikit-learn에서는 점수가 높을수록 좋은 모델로 평가하는 규칙이 있어 오차 지표를 음수화하여 사용.
 
 <br>
 
-3. 허위매물 판별을 위해 실제가격과 예측가격의 차이(잔차)를 계산하고, 하위 2.8%(72/2579)를 허위매물로 분류. <br> 이는 점수제에서 발견한 허위매물 수와 동일한 비율을 적용하여 두 방법론의 결과를 직접 비교할 수 있게 함.
+3.  허위매물 판별을 위해 실제가격과 예측가격의 차이(잔차)를 계산하고, 하위 2.8%(72/2579)를 허위매물로 분류. <br> 이는 점수제에서 발견한 허위매물 수와 동일한 비율을 적용하여 두 방법론의 결과를 직접 비교할 수 있게 함.
 
 <br>
 
-4. 각 가격 수준(Low, Mid, High) 그룹별로 별도의 모델을 구축하여 가격대별 특성을 반영한 허위매물 탐지가 가능하도록 함.
+4.  각 가격 수준(Low, Mid, High) 그룹별로 별도의 모델을 구축하여 가격대별 특성을 반영한 허위매물 탐지가 가능하도록 함.
 
+##  {.tabset}
 
-## {.tabset}
+### Low 그룹
 
-### Low 그룹 
-
-::: {.card}
-
+::: card
 ```{python}
 
 import numpy as np
@@ -732,7 +718,7 @@ df_lvl['ridge_flag'] = df_lvl['residual'] <= thresh
 r2    = r2_score(y, ridge.predict(X))
 alpha = ridge.alpha_
 print(f"설명력 (R²): {r2:.3f}")
-print(f"최적 α (alpha): {alpha:.3g}\n")
+print(f"최적 α (alpha): {alpha:.3g}/n")
 
 
 import plotly.express as px
@@ -803,7 +789,6 @@ fig = make_figure(df_lvl, level)
 fig
 ```
 
-
 ### Low 그룹 허위매물 정리
 
 ```{python}
@@ -815,15 +800,15 @@ pct     = count/total*100
 
 # 4) 결과 출력
 print(f"▶ 전체 샘플 수: {total}개")
-print(f"▶ 허위매물 수: {count}개 ({pct:.1f}%)\n")
+print(f"▶ 허위매물 수: {count}개 ({pct:.1f}%)/n")
 ```
 
 #### 허위매물 목록 (정렬 기준 : residual)
 
 ```{python}
 # 5) 목록
-flagged[['Neighborhood','SalePrice','predicted','residual']] \
-    .sort_values('residual')
+flagged[['Neighborhood','SalePrice','predicted','residual']].sort_values('residual')
+
 ```
 
 #### Low 그룹 허위매물 위치 지도
@@ -865,14 +850,11 @@ fig = px.scatter_mapbox(
 
 fig
 ```
-
 :::
 
 ### Mid 그룹
 
-::: {.card}
-
-
+::: card
 ```{python}
 
 level = 'Mid'
@@ -894,7 +876,7 @@ df_lvl['ridge_flag'] = df_lvl['residual'] <= thresh
 r2    = r2_score(y, ridge.predict(X))
 alpha = ridge.alpha_
 print(f"설명력 (R²): {r2:.3f}")
-print(f"최적 α (alpha): {alpha:.3g}\n")
+print(f"최적 α (alpha): {alpha:.3g}/n")
 
 
 
@@ -977,7 +959,7 @@ pct     = count/total*100
 
 # 4) 결과 출력
 print(f"▶ 전체 샘플 수: {total}개")
-print(f"▶ 허위매물 수: {count}개 ({pct:.1f}%)\n")
+print(f"▶ 허위매물 수: {count}개 ({pct:.1f}%)/n")
 
 ```
 
@@ -985,8 +967,7 @@ print(f"▶ 허위매물 수: {count}개 ({pct:.1f}%)\n")
 
 ```{python}
 # 5) 목록
-flagged[['Neighborhood','SalePrice','predicted','residual']] \
-    .sort_values('residual')
+flagged[['Neighborhood','SalePrice','predicted','residual']].sort_values('residual')
 ```
 
 #### Mid 그룹 허위매물 위치 지도
@@ -1028,13 +1009,11 @@ fig = px.scatter_mapbox(
 
 fig
 ```
-
 :::
 
-### High 그룹 
+### High 그룹
 
-::: {.card}
-
+::: card
 ```{python}
 
 level = 'High'
@@ -1057,7 +1036,7 @@ df_lvl['ridge_flag'] = df_lvl['residual'] <= thresh
 r2    = r2_score(y, ridge.predict(X))
 alpha = ridge.alpha_
 print(f"설명력 (R²): {r2:.3f}")
-print(f"최적 α (alpha): {alpha:.3g}\n")
+print(f"최적 α (alpha): {alpha:.3g}/n")
 
 
 import plotly.express as px
@@ -1139,7 +1118,7 @@ pct     = count/total*100
 
 # 4) 결과 출력
 print(f"▶ 전체 샘플 수: {total}개")
-print(f"▶ 허위매물 수: {count}개 ({pct:.1f}%)\n")
+print(f"▶ 허위매물 수: {count}개 ({pct:.1f}%)/n")
 
 ```
 
@@ -1147,8 +1126,7 @@ print(f"▶ 허위매물 수: {count}개 ({pct:.1f}%)\n")
 
 ```{python}
 # 5) 목록
-flagged[['Neighborhood','SalePrice','predicted','residual']] \
-    .sort_values('residual')
+flagged[['Neighborhood','SalePrice','predicted','residual']].sort_values('residual')
 ```
 
 #### High 그룹 허위매물 위치 지도
@@ -1190,7 +1168,6 @@ fig = px.scatter_mapbox(
 
 fig
 ```
-
 :::
 
 ```{python}
@@ -1297,10 +1274,10 @@ ridge_set   = set(df.index[df['ridge_flag']])
 
 ```
 
+# 5. 결론
 
-# 최종 허위매물은
+## Row
 
-## Row 
 ```{python}
 #| content: valuebox
 #| title: "점수제 허위매물"
@@ -1310,6 +1287,7 @@ dict(
   value = "72개",
   )
 ```
+
 ```{python}
 #| content: valuebox
 #| title: "회귀분석 허위매물"
@@ -1319,6 +1297,7 @@ dict(
   value = "73개",
   )
 ```
+
 ```{python}
 #| content: valuebox
 #| title: "최종 선정 허위매물"
@@ -1330,15 +1309,12 @@ dict(
   )
 ```
 
-
-
-
 ::: {.column width="50%"}
-
 ## Row {.tabset}
+
 ### 점수제
 
-```{python} 
+```{python}
 import folium
 common_df2 = df.loc[list(score_set)]
 # 좌표 결측치 제거
@@ -1385,6 +1361,7 @@ fig7
 ```
 
 ### 회귀분석
+
 ```{python}
 import folium
 common_df3 = df.loc[list(ridge_set)]
@@ -1432,6 +1409,7 @@ fig8
 ```
 
 ### 공통허위매물
+
 ```{python}
 
 import folium
@@ -1482,11 +1460,7 @@ for _, row in common_df1.iterrows():
 # 지도 출력
 display(fig6)
 ```
-
 :::
-
-
-
 
 ```{python}
 cols = [
@@ -1499,19 +1473,12 @@ common_df_selected.sort_values(by='Neighborhood')
 
 ```
 
-
-
 📍 서로 다른 탐지 관점을 가지고 있기 때문에 두가지 방법의 결과가 상이하다고 판단
 
-## Row {width=100%}
+## Row {width="100%"}
 
-<div style="border: 2px solid #DC143C; border-radius: 10px; padding: 15px; background-color: #fff5f5;">
-  <span style="font-size: 20px; font-weight: bold; color: #DC143C;">
-    🏠 최종 결론
-  </span><br><br>
-  점수제를 통한 허위매물 탐지는 <b>직관적인</b> 기준에 기반해 빠르게 의심 매물을 걸러낼 수 있으며,<br>
-  회귀 분석을 통한 방법은 <b>패턴분석</b>을 통해 <b>정교한 판단</b>을 할 수 있습니다.<br><br>
-  
-  두 가지 방법을 <b style="color:#DC143C;">보완적으로 함께 활용</b>할 경우,<br>
-  단일 방법보다 <b>더 높은 신뢰도로 허위매물 가능성이 높은 대상</b>을 선별할 수 있다고 판단됩니다.
-</div>
+::: {style="border: 2px solid #DC143C; border-radius: 10px; padding: 15px; background-color: #fff5f5;"}
+[ 🏠 최종 결론 ]{style="font-size: 20px; font-weight: bold; color: #DC143C;"}<br><br> 점수제를 통한 허위매물 탐지는 <b>직관적인</b> 기준에 기반해 빠르게 의심 매물을 걸러낼 수 있으며,<br> 회귀 분석을 통한 방법은 <b>패턴분석</b>을 통해 <b>정교한 판단</b>을 할 수 있습니다.<br><br>
+
+두 가지 방법을 <b style="color:#DC143C;">보완적으로 함께 활용</b>할 경우,<br> 단일 방법보다 <b>더 높은 신뢰도로 허위매물 가능성이 높은 대상</b>을 선별할 수 있다고 판단됩니다.
+:::
