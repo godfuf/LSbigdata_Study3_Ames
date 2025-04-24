@@ -117,8 +117,7 @@ low_df  = df[df['price_level'] == 'Low'].copy()
 # 발표 시작
 
 <div style="display: flex; gap: 10px; align-items: flex-start;">
-  <img src="fakeroom1.png" style="width: 49%;" alt="첫 번째 이미지">
-  <img src="fakeroom2.png" style="width: 49%;" alt="두 번째 이미지">
+  <img src="imagebox/fakeroom.png" style="width: 49%;" alt="fake room 이미지">
 </div> 
 
 
@@ -649,8 +648,6 @@ fig = px.scatter_mapbox(
 fig.show()
 
 ```
-
-
 
 
 

@@ -113,6 +113,14 @@ low_df  = df[df['price_level'] == 'Low'].copy()
 
 4.  분석의 제한점
 
+
+# 발표 시작
+
+<div style="display: flex; gap: 10px; align-items: flex-start;">
+  <img src="imagebox/fakeroom.png" style="width: 49%;" alt="fake room 이미지">
+</div> 
+
+
 # 개요
 
 ## Row {height="15%"}
@@ -640,8 +648,6 @@ fig = px.scatter_mapbox(
 fig.show()
 
 ```
-
-
 
 
 
