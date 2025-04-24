@@ -81,11 +81,16 @@ low_df  = df[df['price_level'] == 'Low'].copy()
 
 # {.sidebar width="150px"}
 
+
 ##  허위매물이란?
 
-- 가격 대비 각 조건이 
-- 시장 평균을 크게 벗어난 경우
-- 이상치로 정의
+가격 대비 각 조건이
+
+시장 평균을
+
+크게 벗어난 경우
+
+이상치로 정의
 
 
  
@@ -97,8 +102,7 @@ low_df  = df[df['price_level'] == 'Low'].copy()
 2. 회귀분석
 
 
-
-# 발표 시작
+# 발표
 
 <div style="display: flex; gap: 10px; align-items: flex-start;">
   <img src="imagebox/fakeroom1.png" style="width: 49%;" alt="첫 번째 이미지">
@@ -225,6 +229,7 @@ fig.show()
 
 ## Row {height="20%"}
 
+::: card
 
 ### 지역별 주택 가격 구간 분류
 
@@ -237,6 +242,7 @@ fig.show()
 > -   `Neighborhood`별 평균 `SalePrice`를 기준으로 분위수(Quantile)를 계산하여 고가/중간/저가로 분류함\
 > -   상위 25% 이상: 고가 지역, 중위 50%: 중간 지역, 하위 25% 이하: 저가 지역
 
+:::
 
 ## Row {height="30%"}
 
