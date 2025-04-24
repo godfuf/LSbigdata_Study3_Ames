@@ -96,24 +96,6 @@ low_df  = df[df['price_level'] == 'Low'].copy()
 
 </div>
 
-## Row
-:::{.card} 
-<span style="font-size: 35px;">
-🏘 가격 별 그룹 분류
-</span>
-
-```{python}
-# 가격 수준별 SalePrice 분포
-import plotly.express as px
-fig = px.histogram(df, x='SalePrice', 
-                    color='price_level', 
-                    opacity=0.6)
-fig.show()
-
-```
-
-:::
-
 ## Row {.tabset}
 :::{.card}
 ```{python}
