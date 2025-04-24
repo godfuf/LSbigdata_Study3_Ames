@@ -106,7 +106,7 @@ low_df  = df[df['price_level'] == 'Low'].copy()
 
 # 인트로
 
-## Row {height=20%}
+## Row {height=15%}
 
 ### Column {width=50%}
 :::{.card}
@@ -128,7 +128,7 @@ low_df  = df[df['price_level'] == 'Low'].copy()
 3. 젊은 인구 비중 높고 교육 중심 도시 (20~34세 인구 비중 약 40%)
 :::
 
-## Row {height=40%}
+## Row {height=35%}
 
 :::{.card}
 ### Ames 위치 및 지역 분포
@@ -178,34 +178,61 @@ fig_map.update_layout(
 )
 
 ```
-fig_map.show()
 
 - Ames 지역의 평균 주택가격 기준
 - 상·중·하로 분류
 - 각 점은 개별 주택을 의미
 :::
 
-## Row {height=30%}
-
-### Column {width=50%}
-:::{.card}
-### Neighborhood 구역 구분
-- **high, mid, low** 구역별 지역 이름 나열
-- 도식화할 때 기준 및 방법 설명
-:::
-
-### Column {width=50%}
-:::{.card}
-### 구역별 주요 특성 시각화 (그래프)
-- 각 구역별 평균 가격, 주택 상태 등 시각화
-- [→ 그래프 시각화 필요!]
-
-:::
-
 ## Row {height=20%}
+:::
+### 지역별 주택 가격 구간 분류
+
+| 가격 구간  | 평균 가격 범위 (USD) | 주요 지역 |
+|------------|----------------------|-------------------------------|
+| 🔺 **고가 지역 (High)** | ≥ 217,676 | NoRidge, NridgHt, StoneBr, Veenker, Greens, Timber |
+| ⚖️ **중간 지역 (Mid)** | 136,144 ~ 217,675 | CollgCr, Mitchel, NAmes, SawyerW, OldTown, Crawfor, Edwards |
+| 🔻 **저가 지역 (Low)** | ≤ 136,143 | MeadowV, BrDale, IDOTRR, Landmrk, Blueste |
+
+> - `Neighborhood`별 평균 `SalePrice`를 기준으로 분위수(Quantile)를 계산하여 고가/중간/저가로 분류함  
+> - 상위 25% 이상: 고가 지역, 중위 50%: 중간 지역, 하위 25% 이하: 저가 지역
+
+:::
+
+## Row {height=30%}
+### Column {width=5%}
 :::{.card}
-### 29개 Neighborhood 소개
-- 각 지역 이름, 주요 특징 간단 요약
+
+🔺 고가 지역 (High)
+
+- 평균 주택 가격이 높고 고급 주택 밀집
+- 최신 건축/리모델링, 품질 우수
+- 넓은 면적과 부대시설 완비
+- 고급 단독주택 중심, 조용한 환경
+- 거래량은 적지만 희소성 존재 :::
+
+### Column {width=5%}
+:::{.card}
+
+⚖️ 중간 지역 (Mid)
+
+- Ames 평균 수준 주택 분포
+- 다양한 주거 형태(단독, 타운하우스 등)
+- 젊은층/대학생 임대 수요 존재
+- 인프라 양호, 가족 선호 지역
+- 거래량 많고 시장 내 활발 :::
+
+### Column {width=5%}
+:::{.card}
+
+🔻 저가 지역 (Low)
+
+- 평균 주택 가격 낮고 일부 노후
+- 유지 관리 상태 중하 수준
+- 소형 임대 주택 비중 높음
+- 소음, 상업지 인접 등으로 선호도 낮음
+- 거래량 적고 정보 부족 
+
 :::
 
 
