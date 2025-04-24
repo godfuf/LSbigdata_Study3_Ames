@@ -489,15 +489,3 @@ fig = px.scatter_mapbox(
 fig.show()
 
 ```
-
-## Row {height=20%}
-### {width=30%}
-
-
-
-
-
-
-### {width=70%}
-
-
