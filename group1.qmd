@@ -12,22 +12,23 @@ format:
 
 # {.sidebar}
 
-## 에임즈 인트로 / 지도시각화 
+## ## <span style="font-size: 14px;">에임즈 인트로</span> 
 - 블라블라
 
-## 연속형 > 박스플롯 / 범주형 > 그래프, 조건별 결과 
+## <span style="font-size: 14px;">연속형 > 박스플롯 / 범주형 > 그래프, 조건별 결과 </span>
+
 
 1. 
 2. 
 3. 
 4. 
 
-## 회귀모델 
+## <span style="font-size: 14px;">회귀모델</span>
 
 1. 
 2. 
 
-##  결론 및 보완점
+## <span style="font-size: 14px;">결론 및 보완점</span>
 
 1. 
 2. 
