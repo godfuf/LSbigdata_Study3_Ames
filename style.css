@@ -1,0 +1,77 @@
+/* 전체 배경과 텍스트 스타일 */
+body {
+  font-family: 'Segoe UI', 'Noto Sans KR', sans-serif;
+  background-color: #f5f7fa;
+  color: #2c3e50;  /* 텍스트 색상 (어두운 회색) */
+  line-height: 1.6;
+}
+
+/* 제목 스타일 */
+h1, h2, h3 {
+  color: #1a1a1a;  /* 제목 색상 (검정색에 가까운 어두운 색상) */
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  margin-bottom: 0.5em;
+}
+
+/* 구역마다 박스 디자인 */
+.card, .cell, .panel, .box {
+  background-color: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+  margin-bottom: 20px;
+}
+
+/* 표와 코드 블록 스타일 */
+table, pre {
+  border-radius: 8px;
+  background-color: #ffffff;
+  padding: 16px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  color: #2c3e50;  /* 표와 코드 블록 텍스트 색상 (어두운 회색) */
+}
+
+/* 링크 색상 */
+a {
+  color: #0078d7;  /* 링크 색상 (파란색) */
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+  color: #005ea6;
+}
+
+/* 버튼 */
+button {
+  background-color: #0078d7;
+  color: #fff;  /* 버튼 텍스트 색상 (흰색) */
+  border: none;
+  padding: 10px 20px;
+  font-weight: 500;
+  border-radius: 10px;
+  transition: background 0.3s ease;
+}
+
+button:hover {
+  background-color: #005ea6;
+}
+
+/* 이미지 스타일 */
+img {
+  border-radius: 12px;
+  max-width: 100%;
+  height: auto;
+}
+
+/* 대시보드 안 리스트 스타일 개선 */
+ul, ol {
+  padding-left: 1.5em;
+}
+
+/* 부드러운 애니메이션 */
+* {
+  transition: all 0.2s ease-in-out;
+}
+
