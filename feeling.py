@@ -1,10 +1,15 @@
 import numpy as np
 import pandas as pd
+from sklearn.linear_model import ElasticNetCV
+from sklearn.model_selection import train_test_split
+import plotly.express as px
+
+import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.linear_model import LinearRegression
 import seaborn as sns
 
-# 한글 설정하고 시작
+# 한글 설정
 plt.rcParams['font.family'] ='Malgun Gothic'
 plt.rcParams['axes.unicode_minus'] =False
 
@@ -15,11 +20,12 @@ ames=pd.read_csv('ames.csv')
 # 복사 및 전처리
 df = ames.copy()
 
-
 # Neighborhood별 평균 SalePrice 기준 분위수 계산
 df_ns = df.groupby('Neighborhood')['SalePrice'].mean()
 q1, q2 = df_ns.quantile([0.25, 0.75])
 
+
+#df['price_level'] 이라는 칼럼으로 집값 별 분위로 구분
 df['price_level'] = np.select(
     [
         df['Neighborhood'].isin(df_ns[df_ns <= q1].index),
@@ -30,106 +36,17 @@ df['price_level'] = np.select(
     default='Unknown'  #  문자열로 통일
 )
 
-# 기본 변수 계산
-
-#편의시설[수영장, 지하실, 차고 존재 여부로 점수 부여]
-df['amenities'] = (df['PoolArea'] > 0).astype(int) + (df['TotalBsmtSF'] > 0).astype(int) + (df['GarageArea'] > 0).astype(int) + (df['MiscVal'] > 0).astype(int)
-
-#   전체 면적 대비 방의 비율[욕실 제외 방수 + 반욕실+풀욕실][집의 구성이 정상인지 파악]
-df['TotalRooms'] = df['TotRmsAbvGrd'] + df['HalfBath'] + df['FullBath']
-df['RoomDensity'] = df['TotalRooms'] / df['GrLivArea']
-
-# 
-df['YearRemodAdd_th'] = df.groupby('price_level')['YearRemodAdd'].transform(lambda x: x.quantile(0.75))
-
-# 기준값
-area_median = df['GrLivArea'].median()
-room_density_threshold = 0.01
-qual_thresholds = {'Low': 7, 'Mid': 8, 'High': 9}
-
-# price_level별 조건 점수 계산
-suspicious_list = []
-for level, qual_th in qual_thresholds.items():
-    sub = df[df['price_level'] == level].copy()
-    sub['suspicious_flag'] = (
-        (sub['OverallQual'] >= qual_th).astype(int) +
-        (sub['GrLivArea'] < area_median).astype(int) +
-        (sub['amenities'] >= 3).astype(int) +
-        (sub['RoomDensity'] >= room_density_threshold).astype(int) +
-        (sub['OverallCond'] >= 6).astype(int) +
-        (sub['YearRemodAdd'] >= sub['YearRemodAdd_th']).astype(int)
-    )
-    suspicious_list.append(sub[sub['suspicious_flag'] >= 3])
-
-# 최종 suspicious 데이터프레임
-suspicious_df = pd.concat(suspicious_list)
-
-
-
-
-
-
-
-
-
-
-
-
-
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.linear_model import LassoCV
-from sklearn.model_selection import train_test_split
-plt.rcParams['font.family'] = 'Malgun Gothic'
-plt.rcParams['axes.unicode_minus'] = False
-pd.set_option('display.max_columns', None)
-
-
-# 데이터 불러오기
-ames = pd.read_csv('./ames.csv')
-
-ames['Neighborhood'].unique()
-
-ames.info()
-
-# 복사 및 전처리
-df = ames.copy()
-
-# 결측치가 1개 이상 있는 컬럼만 출력
-# null_cols = df.columns[df.isnull().any()]
-# df[null_cols].isnull().sum().sort_values(ascending=False)
-
-
-## 1. 구역들을 고가/저가/중간 3개 그룹으로 나누기
-df_ns = df.groupby('Neighborhood')['SalePrice'].mean()
-
-# 분위수 계산
-q1 = df_ns.quantile(0.25)
-q2 = df_ns.quantile(0.75)
-
-df['price_level'] = np.select(
-    [
-        df['Neighborhood'].isin(df_ns[df_ns <= q1].index),
-        df['Neighborhood'].isin(df_ns[(df_ns > q1) & (df_ns <= q2)].index),
-        df['Neighborhood'].isin(df_ns[df_ns > q2].index)
-    ],
-    ['Low', 'Mid', 'High'],
-    default=np.nan
-)
-df
-
 
 ## 2. 모든 범주형 데이터 결측치 >> None 추가
 
 # 범주형 컬럼만 선택
 cat_cols = df.select_dtypes(include='object').columns
-
 # 범주형 결측치 'None'으로 대체
 df[cat_cols] = df[cat_cols].fillna('None')
 
 
+
+#편의시설 칼럼 추가[수영장,지하실,차고,MiscFeature칼럼의 부가가치 수치화(Elev,Gar2,Shed,TenC)
 df['amenities'] = (
     (df['PoolArea'] > 0).astype(int) +
     (df['TotalBsmtSF'] > 0).astype(int) +
@@ -137,42 +54,13 @@ df['amenities'] = (
     (df['MiscVal'] > 0).astype(int)
 )
 
+# 주거면적대비 모든 방수가 차지하는 정도를 비율로 표현
 df['TotalRooms'] = df['TotRmsAbvGrd'] + df['HalfBath'] + df['FullBath']  # 욕실 제외 방수 + 반욕실 + 풀욕실
 df['RoomDensity'] = df['TotalRooms'] / df['GrLivArea']  # 방 밀도 (방수 / 거실 면적)
 
 
-# # 1) 각 그룹별 중위값을 계산해 새로운 컬럼에 저장
-# df['SalePrice_median'] = df.groupby('price_level')['SalePrice'].transform('median')
-
-# # 2) 그룹별 중위값 이하인 매물만 필터링
-# df_half = df[df['SalePrice'] <= df['SalePrice_median']]
-
-
 ''''''''''''''''''''''''''''''''''''
-
-# import matplotlib.pyplot as plt
-
-# cols   = ['GrLivArea', 'YearRemodAdd']
-# levels = ['Low', 'Mid', 'High']
-
-# for col in cols:
-#     for level in levels:
-#         data = df[df['price_level'] == level][col]
-        
-#         # fig, ax 객체를 사용
-#         fig, ax = plt.subplots(figsize=(8, 3))
-#         ax.boxplot(data, vert=False, patch_artist=True,
-#                    boxprops=dict(edgecolor='black'))
-        
-#         ax.set_title(f'{level} 그룹 — {col} 분포 (박스플롯)')
-#         ax.set_xlabel(col)
-#         plt.tight_layout()
-#         plt.show()
-
-
-
-''''''''''''''''''''''''''''''''''''
-
+df['GrLivArea']
 
 ## 3. 허위매물 판단 조건 설정 - 기준값 상위 25% 이상
 df['GrLivArea_th']    = df.groupby('price_level')['GrLivArea']   \
@@ -188,6 +76,12 @@ high_df = df[df['price_level'] == 'High'].copy()
 mid_df  = df[df['price_level'] == 'Mid'].copy()
 low_df  = df[df['price_level'] == 'Low'].copy()
 
+high_df['Neighborhood']
+mid_df['Neighborhood']
+low_df['Neighborhood']
+
+
+
 
 
 # ——————————————————————————————
@@ -195,7 +89,7 @@ low_df  = df[df['price_level'] == 'Low'].copy()
 # ——————————————————————————————
 
 # High 그룹
-high_med      = high_df['SalePrice'].median()
+high_med      = high_df['SalePrice'].median() # 
 high_area_th  = high_df['GrLivArea'].quantile(0.75)
 high_remod_th = high_df['YearRemodAdd'].quantile(0.75)
 high_den_th   = high_df['RoomDensity'].quantile(0.75)
@@ -262,104 +156,207 @@ for name, gdf, med in [
     print(f"score ≥ 3인 건수: { (filt['score'] >= 3).sum() }건")
 
 
+# ——————————————————————————————
+# 3) 원본 df에 score 계산 & 허위매물 후보 추출
+# ——————————————————————————————
 
+# (1) score 계산: 6가지 조건을 한 줄로 집계
+qual_th = {'Low':7,'Mid':8,'High':9}
+cond_th = {'Low':8,'Mid':6,'High':6}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 결측치가 1개 이상 있는 컬럼만 출력
-null_cols = df.columns[df.isnull().any()]
-df[null_cols].isnull().sum().sort_values(ascending=False)
-
-# 1. 고가/저가/중간 나누기
-df_ns = df.groupby('Neighborhood')['SalePrice'].mean()
-
-# 분위수 계산
-q1 = df_ns.quantile(0.25)
-q2 = df_ns.quantile(0.75)
-
-
-# 3. 조건 기반 price_level 설정
-def get_price_level(neighborhood):
-    avg = df_ns.get(neighborhood, np.nan)
-    if pd.isna(avg):
-        return np.nan
-    elif avg <= q1:
-        return 'Low'
-    elif avg <= q2:
-        return 'Mid'
-    else:
-        return 'High'
-
-# 4. 컬럼 생성
-df['price_level'] = df['Neighborhood'].apply(get_price_level)
-
-
-# 그릴 컬럼과 price_level 정의
-cols = ['TotalRooms', 'RoomDensity']
-levels = ['Low', 'Mid', 'High']
-
-# 1) 히스토그램
-for col in cols:
-    for level in levels:
-        data = df[df['price_level'] == level][col]
-        
-        plt.figure(figsize=(8, 5))
-        plt.hist(data, bins=30, edgecolor='black')
-        plt.title(f'{level} 그룹 — {col} 분포')
-        plt.xlabel(col)
-        plt.ylabel('빈도')
-        plt.tight_layout()
-        plt.show()
-
-# 2) 박스플롯
-for col in cols:
-    for level in levels:
-        data = df[df['price_level'] == level][col]
-        
-        plt.figure(figsize=(8, 3))
-        plt.boxplot(data, vert=False, patch_artist=True,
-                    boxprops=dict(edgecolor='black'))
-        plt.title(f'{level} 그룹 — {col} 분포 (박스플롯)')
-        plt.xlabel(col)
-        plt.tight_layout()
-        plt.show()
-
-
-# 편의시설 개수 계산 (수영장, 지하실, 차고 존재 여부)
-df['amenities'] = (
-    (df['PoolArea'] > 0).astype(int) +
-    (df['TotalBsmtSF'] > 0).astype(int) +
-    (df['GarageArea'] > 0).astype(int)
+df['score'] = df.apply(lambda r: 
+    int(r['OverallQual']  >= qual_th[r['price_level']]) +
+    int(r['OverallCond']  >= cond_th [r['price_level']]) +
+    int(r['GrLivArea']    >= r['GrLivArea_th']) +
+    int(r['YearRemodAdd'] >= r['YearRemodAdd_th']) +
+    int(r['RoomDensity']  >= r['RoomDensity_th']) +
+    int(r['amenities']    >= 3),
+    axis=1
 )
 
-# 세 그룹 프레임 나누기
-high_df = df[df['price_level'] == 'High'].copy()
-mid_df = df[df['price_level'] == 'Mid'].copy()
-low_df = df[df['price_level'] == 'Low'].copy()
+# (2) 그룹별 중위값 이하 여부
+median_price = df.groupby('price_level')['SalePrice'].transform('median')
+
+# (3) suspect_flag 생성
+df['suspect_flag'] = (df['SalePrice'] <= median_price) & (df['score'] >= 3)
+
+# (4) 허위매물 후보만 추출
+suspect_df = df[df['suspect_flag']].copy()
+
+# (5) 결과 출력: 모든 컬럼 포함
+print(f"허위매물 후보 총 {len(suspect_df)}건")
+suspect_df
 
 
 
-# High Price - 어메니티스 분포
-plt.subplot(1, 3, 1)
-sns.histplot(high_df['amenities'], kde=True, bins=10, color='blue')
-plt.title('High Price - Amenities Count Distribution')
-plt.xlabel('Number of Amenities')
-plt.ylabel('Frequency')
+
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#### 지도시각화 ####
+
+import plotly.express as px
+
+# 지도 중심을 데이터의 평균 위도·경도로 설정
+center = {
+    "lat": df["Latitude"].mean(),
+    "lon": df["Longitude"].mean()
+}
+
+fig = px.scatter_mapbox(
+    df,
+    lat="Latitude",
+    lon="Longitude",
+    color="price_level",
+    hover_name="Neighborhood",
+    hover_data=["SalePrice", "GrLivArea"],
+    zoom=11.5,                    
+    center=center,              # 지도 중심 좌표
+    height=600,
+    mapbox_style="open-street-map",
+    title="Ames Housing: Price Level by Neighborhood (확대)"
+)
+
+fig.show()
+
+
+
+
+'''''''''''''''''''''''''''''''''''''''''''RidgeCV 사용 회귀모델'
+import numpy as np
+import pandas as pd
+from sklearn.linear_model import RidgeCV
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import r2_score, mean_squared_error
+import plotly.express as px
+
+# 사용할 6개 피처와 타겟 정의
+features = [
+    'OverallQual',
+    'OverallCond',
+    'GrLivArea',
+    'YearRemodAdd',
+    'RoomDensity',
+    'amenities'
+]
+target = 'SalePrice'
+
+# price_level별 모델 학습, 검증, 예측, 시각화
+for level in ['Low', 'Mid', 'High']:
+    # 1) 해당 그룹 데이터 분리
+    df_lvl = df[df['price_level'] == level].copy()
+    X = df_lvl[features]
+    y = df_lvl[target]
+    
+    # 2) hold-out test set 생성 (20%)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+    
+    # 3) RidgeCV 모델 학습 (내부 5-fold CV 포함)
+    # ElasticNet과 달리 Ridge는 l1_ratio가 없고 alpha만 튜닝합니다
+    ridge = RidgeCV(
+        alphas=np.logspace(-4, 1, 10),  # 다양한 alpha 값 검사 (10개)
+        cv=5,                           # 5-fold 교차검증
+        scoring='neg_mean_squared_error' # MSE를 최소화하는 alpha 선택
+    )
+    ridge.fit(X_train, y_train)
+    
+    # 4) Test set 성능 평가
+    y_test_pred = ridge.predict(X_test)
+    r2   = r2_score(y_test, y_test_pred)
+    rmse = np.sqrt(mean_squared_error(y_test, y_test_pred))
+    print(f"{level} 그룹 → Test R² = {r2:.3f}, RMSE = {rmse:,.0f}")
+    print(f"    최적 alpha = {ridge.alpha_:.6f}")
+    
+    # 모델의 계수 확인 (Ridge는 모든 변수의 계수를 유지함)
+    coefficients = pd.DataFrame({
+        'Feature': features,
+        'Coefficient': ridge.coef_
+    }).sort_values('Coefficient', ascending=False)
+    print("Ridge 계수:")
+    print(coefficients)
+    print("\n" + "-"*50 + "\n")
+    
+    # 5) 전체 그룹 데이터에 대해 예측 및 residual 계산
+    df_lvl['predicted'] = ridge.predict(X)
+    df_lvl['residual']  = df_lvl['SalePrice'] - df_lvl['predicted']
+    
+    # 6) 이상치(허위매물) 플래그: residual 하위 25% 이하면 True
+    thresh = df_lvl['residual'].quantile(0.026)
+    df_lvl['ridge_flag'] = df_lvl['residual'] <= thresh
+    
+    # 7) 인터랙티브 산점도
+    fig = px.scatter(
+        df_lvl,
+        x='SalePrice',
+        y='predicted',
+        color='ridge_flag',
+        color_discrete_map={True: 'red', False: 'lightgray'},
+        title=f'Actual vs. Predicted ({level}) - Ridge Regression',
+        labels={'SalePrice':'실제가격','predicted':'예측가격','ridge_flag':'허위매물 의심'},
+        opacity=0.7
+    )
+    # y = x 대각선 추가 (완벽한 예측 참조선)
+    mn, mx = df_lvl[['SalePrice','predicted']].min().min(), df_lvl[['SalePrice','predicted']].max().max()
+    fig.add_shape(
+        type='line', x0=mn, y0=mn, x1=mx, y1=mx,
+        line=dict(color='black', dash='dash')
+    )
+    fig.update_layout(width=600, height=600)
+    fig.show()
+    
+
+
+
+
+# ———————————————————————————————————————
+# 4. 두 가지 메서드로 뽑힌 허위매물 비교
+# ———————————————————————————————————————
+
+# (1) 사용할 피처·타겟 재확인
+features = ['OverallQual', 'OverallCond', 'GrLivArea', 'YearRemodAdd', 'RoomDensity', 'amenities']
+target   = 'SalePrice'
+
+# (2) 플래그 컬럼 초기화
+df['elastic_flag'] = False
+df['ridge_flag']   = False
+
+# (3) RidgeCV로 전체 데이터에 대해 플래그 계산
+for level in ['Low','Mid','High']:
+    mask = df['price_level']==level
+    X = df.loc[mask, features]
+    y = df.loc[mask, target]
+    ridge = RidgeCV(
+        alphas=np.logspace(-4, 1, 10),
+        cv=5,
+        scoring='neg_mean_squared_error'
+    )
+    ridge.fit(X, y)
+    preds = ridge.predict(X)
+    resid = y - preds
+    thresh = resid.quantile(0.026)
+    df.loc[mask, 'ridge_flag'] = resid <= thresh
+
+# (4) 인덱스 집합으로 변환
+score_set   = set(df.index[df['suspect_flag']])
+elastic_set = set(df.index[df['elastic_flag']])
+ridge_set   = set(df.index[df['ridge_flag']])
+
+# (5) 개수 요약 출력
+print("=== 허위매물 건수 비교 ===")
+print(f"점수제(suspect_flag) : {len(score_set)}건")
+print(f"Ridge   기준      : {len(ridge_set)}건\n")
+
+print("=== 교집합 건수 ===")
+print(f"점수&ElasticNet 공통 허위매물     : {len(score_set & elastic_set)}건")
+
+
+# (7) 각 그룹별 예시 뽑아서 보기
+print(">>> 두 방법 모두 의심한 매물 (공통)")
+df.loc[list(score_set & ridge_set)]
+
+print(">>> 오직 점수제만 의심한 매물")
+df.loc[list(score_set - ridge_set)]
+
+print(">>> 오직 Ridge만 의심한 매물")
+df.loc[list(ridge_set - score_set)]
+
