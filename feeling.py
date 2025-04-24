@@ -518,3 +518,4 @@ fig_map.show()
 
 
 df['Neighborhood'].value_counts()
+df['Neighborhood'].describe()
