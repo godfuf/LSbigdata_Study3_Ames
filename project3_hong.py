@@ -218,7 +218,7 @@ suspect_df
 
 
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-#### 지도시각화 ####
+#### 지도시각화 - 전체 ####
 
 import plotly.express as px
 
@@ -235,6 +235,14 @@ fig = px.scatter_mapbox(
     color="price_level",
     hover_name="Neighborhood",
     hover_data=["SalePrice", "GrLivArea"],
+        labels={
+        "Latitude": "위도",
+        "Longitude": "경도",
+        "price_level": "동네 가격 수준",
+        "Neighborhood": "지역(동네)",
+        "SalePrice": "판매 가격($)",
+        "GrLivArea": "거실 면적(ft²)"
+    },
     zoom=11.5,                    
     center=center,              # 지도 중심 좌표
     height=600,
@@ -245,6 +253,39 @@ fig = px.scatter_mapbox(
 fig.show()
 
 
+#### 지도시각화 - 점수제 기준 허위매물 ####
+
+import plotly.express as px
+
+# 지도 중심을 데이터의 평균 위도·경도로 설정
+center = {
+    "lat": df["Latitude"].mean(),
+    "lon": df["Longitude"].mean()
+}
+suspect_df[suspect_df['Neighborhood'] == 'NAmes']
+fig = px.scatter_mapbox(
+    suspect_df,
+    lat="Latitude",
+    lon="Longitude",
+    color="price_level",
+    hover_name="Neighborhood",
+    hover_data=["SalePrice", "GrLivArea"],
+        labels={
+        "Latitude": "위도",
+        "Longitude": "경도",
+        "price_level": "동네 가격 수준",
+        "Neighborhood": "지역(동네)",
+        "SalePrice": "판매 가격($)",
+        "GrLivArea": "거실 면적(ft²)"
+    },
+    zoom=11.5,                    
+    center=center,              # 지도 중심 좌표
+    height=600,
+    mapbox_style="open-street-map",
+    title="Ames Housing: Price Level by Neighborhood (확대)"
+)
+
+fig.show()
 
 
 '''''''''''''''''''''''''''''''''''''''''''RidgeCV 사용 회귀모델'
@@ -308,7 +349,7 @@ for level in ['Low', 'Mid', 'High']:
     df_lvl['residual']  = df_lvl['SalePrice'] - df_lvl['predicted']
     
     # 6) 이상치(허위매물) 플래그: residual 하위 25% 이하면 True
-    thresh = df_lvl['residual'].quantile(0.026)
+    thresh = df_lvl['residual'].quantile(72/2579)
     df_lvl['ridge_flag'] = df_lvl['residual'] <= thresh
     
     # 7) 인터랙티브 산점도
@@ -360,12 +401,11 @@ for level in ['Low','Mid','High']:
     ridge.fit(X, y)
     preds = ridge.predict(X)
     resid = y - preds
-    thresh = resid.quantile(0.026)
+    thresh = resid.quantile(72/2579)
     df.loc[mask, 'ridge_flag'] = resid <= thresh
 
 # (4) 인덱스 집합으로 변환
 score_set   = set(df.index[df['suspect_flag']])
-elastic_set = set(df.index[df['elastic_flag']])
 ridge_set   = set(df.index[df['ridge_flag']])
 
 # (5) 개수 요약 출력
@@ -374,16 +414,17 @@ print(f"점수제(suspect_flag) : {len(score_set)}건")
 print(f"Ridge   기준      : {len(ridge_set)}건\n")
 
 print("=== 교집합 건수 ===")
-print(f"점수&ElasticNet 공통 허위매물     : {len(score_set & elastic_set)}건")
+print(f"점수&Ridget 공통 허위매물     : {len(score_set & ridge_set)}건")
 
 
 # (7) 각 그룹별 예시 뽑아서 보기
 print(">>> 두 방법 모두 의심한 매물 (공통)")
-df.loc[list(score_set & ridge_set)]
+print(df.loc[list(score_set & ridge_set)])
 
 print(">>> 오직 점수제만 의심한 매물")
-df.loc[list(score_set - ridge_set)]
+print(df.loc[list(score_set - ridge_set)])
 
 print(">>> 오직 Ridge만 의심한 매물")
-df.loc[list(ridge_set - score_set)]
+print(df.loc[list(ridge_set - score_set)])
+
 
