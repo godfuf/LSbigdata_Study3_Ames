@@ -10,7 +10,7 @@ pd.set_option('display.max_columns', None)
 
 
 # 데이터 불러오기
-ames = pd.read_csv('./ames.csv')
+ames = pd.read_csv('C:/Users/USER/Documents/lsbigdata-gen4/1joameshouse/group1_project/ames.csv')
 
 ames['Neighborhood'].unique()
 
@@ -41,6 +41,9 @@ df['price_level'] = np.select(
     default=np.nan
 )
 df
+### 시각화
+
+
 
 ## 2. 모든 범주형 데이터 결측치 >> None 추가
 
@@ -50,7 +53,7 @@ cat_cols = df.select_dtypes(include='object').columns
 # 범주형 결측치 'None'으로 대체
 df[cat_cols] = df[cat_cols].fillna('None')
 
-
+# 어매니티 수영장 차고 지하실 전체면적(?) , 추가적인 부동산 특징
 df['amenities'] = (
     (df['PoolArea'] > 0).astype(int) +
     (df['TotalBsmtSF'] > 0).astype(int) +
@@ -120,7 +123,7 @@ high_med      = high_df['SalePrice'].median()
 high_area_th  = high_df['GrLivArea'].quantile(0.75)
 high_remod_th = high_df['YearRemodAdd'].quantile(0.75)
 high_den_th   = high_df['RoomDensity'].quantile(0.75)
-
+# 조건
 high_df['flag_high_qual']      = (high_df['OverallQual']  >= 9).astype(int)
 high_df['flag_good_condition'] = (high_df['OverallCond']  >= 6).astype(int)
 high_df['flag_high_area']      = (high_df['GrLivArea']    >= high_area_th ).astype(int)
@@ -163,7 +166,7 @@ for name, gdf, med in [
     ('Mid',  mid_df,  mid_med),
     ('Low',  low_df,  low_med),
 ]:
-    # Median 이하인 매물만 복사본으로
+    # Median 이하인 매물만 복사본으로?
     filt = gdf.loc[gdf['SalePrice'] <= med].copy()
     
     # 이 그룹의 flag 컬럼 리스트
@@ -200,8 +203,9 @@ df['score'] = df.apply(lambda r:
     int(r['amenities']    >= 3),
     axis=1
 )
+# r은 각행을나타내는 변수
 
-# (2) 그룹별 중위값 이하 여부
+# (2) 그룹별 중위값 이하 여부    중위값 이하 여부
 median_price = df.groupby('price_level')['SalePrice'].transform('median')
 
 # (3) suspect_flag 생성
@@ -245,7 +249,8 @@ fig = px.scatter_mapbox(
 fig.show()
 
 
-
+####### 점수제로 얻은 72개의 허위매물 후보랑
+# 릿지 회귀 모델을 사용해서 구한 허위매물들간의 비교를 하겠다.  
 
 '''''''''''''''''''''''''''''''''''''''''''RidgeCV 사용 회귀모델'
 import numpy as np
@@ -255,7 +260,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score, mean_squared_error
 import plotly.express as px
 
-# 사용할 6개 피처와 타겟 정의
+# 사용할 6개 피처와 타겟 정의 피처: 속성
 features = [
     'OverallQual',
     'OverallCond',
@@ -281,15 +286,15 @@ for level in ['Low', 'Mid', 'High']:
     # 3) RidgeCV 모델 학습 (내부 5-fold CV 포함)
     # ElasticNet과 달리 Ridge는 l1_ratio가 없고 alpha만 튜닝합니다
     ridge = RidgeCV(
-        alphas=np.logspace(-4, 1, 10),  # 다양한 alpha 값 검사 (10개)
-        cv=5,                           # 5-fold 교차검증
+        alphas=np.logspace(-4, 1, 10),  # 다양한 alpha 값 검사 (10개) 과적합을 방지하기 위해 페널티 부여 클수록 규제 강하게
+        cv=5,                           # 5-fold 교차검증 5번 과적합 방지 한번만하면 일반적인 패턴 파악 못하고 훈련 데이터만 적합한 결과를 만들기 때문
         scoring='neg_mean_squared_error' # MSE를 최소화하는 alpha 선택
     )
     ridge.fit(X_train, y_train)
     
-    # 4) Test set 성능 평가
-    y_test_pred = ridge.predict(X_test)
-    r2   = r2_score(y_test, y_test_pred)
+    # 4) Test set 성능 평가 모델의 일반화 능력 평가를 위한test set 
+    y_test_pred = ridge.predict(X_test) # ridge모델로 테스트 데이터 예측 수행
+    r2   = r2_score(y_test, y_test_pred) # 모델이 실제 데이터 분산을 얼마나 잘 설명하는지 나타내는 지표
     rmse = np.sqrt(mean_squared_error(y_test, y_test_pred))
     print(f"{level} 그룹 → Test R² = {r2:.3f}, RMSE = {rmse:,.0f}")
     print(f"    최적 alpha = {ridge.alpha_:.6f}")
@@ -301,14 +306,14 @@ for level in ['Low', 'Mid', 'High']:
     }).sort_values('Coefficient', ascending=False)
     print("Ridge 계수:")
     print(coefficients)
-    print("\n" + "-"*50 + "\n")
+    print("\n" + "-"*50 + "\n") # 예측 계수 다뽑음
     
     # 5) 전체 그룹 데이터에 대해 예측 및 residual 계산
     df_lvl['predicted'] = ridge.predict(X)
     df_lvl['residual']  = df_lvl['SalePrice'] - df_lvl['predicted']
     
     # 6) 이상치(허위매물) 플래그: residual 하위 25% 이하면 True
-    thresh = df_lvl['residual'].quantile(0.026)
+    thresh = df_lvl['residual'].quantile(72/2579) # 우리가 전체 대비 점수제로 뽑은 매물후보 수의비율로 확인 
     df_lvl['ridge_flag'] = df_lvl['residual'] <= thresh
     
     # 7) 인터랙티브 산점도
@@ -331,7 +336,7 @@ for level in ['Low', 'Mid', 'High']:
     fig.update_layout(width=600, height=600)
     fig.show()
     
-
+#### 예측한 값 중에서 72/2579%만 뽑아서 우리가 선정한 후보 매물이랑 개수 비교교
 
 
 
@@ -360,12 +365,11 @@ for level in ['Low','Mid','High']:
     ridge.fit(X, y)
     preds = ridge.predict(X)
     resid = y - preds
-    thresh = resid.quantile(0.026)
+    thresh = resid.quantile(72/2579)
     df.loc[mask, 'ridge_flag'] = resid <= thresh
 
 # (4) 인덱스 집합으로 변환
 score_set   = set(df.index[df['suspect_flag']])
-elastic_set = set(df.index[df['elastic_flag']])
 ridge_set   = set(df.index[df['ridge_flag']])
 
 # (5) 개수 요약 출력
@@ -374,7 +378,7 @@ print(f"점수제(suspect_flag) : {len(score_set)}건")
 print(f"Ridge   기준      : {len(ridge_set)}건\n")
 
 print("=== 교집합 건수 ===")
-print(f"점수&ElasticNet 공통 허위매물     : {len(score_set & elastic_set)}건")
+print(f"점수&Ridget 공통 허위매물     : {len(score_set & ridge_set)}건")
 
 
 # (7) 각 그룹별 예시 뽑아서 보기
@@ -387,3 +391,75 @@ df.loc[list(score_set - ridge_set)]
 print(">>> 오직 Ridge만 의심한 매물")
 df.loc[list(ridge_set - score_set)]
 
+
+
+import plotly.express as px
+
+# 공통 허위매물 인덱스 추출
+common_suspects = list(score_set & ridge_set)
+
+# 공통 허위매물 데이터프레임 생성
+common_df = df.loc[common_suspects].copy()
+
+# 지도 중심점 설정
+center = {
+    "lat": common_df["Latitude"].mean(),
+    "lon": common_df["Longitude"].mean()
+}
+
+# 지도 시각화
+fig = px.scatter_mapbox(
+    common_df,
+    lat="Latitude",
+    lon="Longitude",
+    color="price_level",
+    hover_name="Neighborhood",
+    hover_data=["SalePrice", "GrLivArea", "OverallQual", "amenities"],
+    zoom=11.5,
+    center=center,
+    height=600,
+    mapbox_style="open-street-map",
+    title="🔍 점수제 + Ridge 공통 허위매물 후보 위치"
+)
+
+fig.show()
+
+import folium
+df.loc[list(score_set & ridge_set)]
+# 공통 허위매물만 추출
+common_df = df.loc[list(score_set & ridge_set)].copy()
+
+common_df = common_df.dropna(subset=["Latitude", "Longitude"])
+
+# 지도 중심 좌표 설정
+center_lat = common_df["Latitude"].mean()
+center_lon = common_df["Longitude"].mean()
+
+# folium 지도 객체 생성
+m = folium.Map(location=[center_lat, center_lon], zoom_start=12)
+
+# price_level별 색상 지정
+color_map = {
+    'Low': 'blue',
+    'Mid': 'green',
+    'High': 'red'
+}
+
+# 마커 추가
+for i, row in common_df.iterrows():
+    popup_text = f"""
+    <b>지역:</b> {row['Neighborhood']}<br>
+    <b>매매가:</b> ${row['SalePrice']:,}<br>
+    <b>거실면적:</b> {row['GrLivArea']} sqft<br>
+    <b>전체평가:</b> {row['OverallQual']}<br>
+    <b>편의시설 수:</b> {row['amenities']}<br>
+    <b>점수제 점수:</b> {row['score']}
+    """
+    folium.Marker(
+        location=[row['Latitude'], row['Longitude']],
+        popup=folium.Popup(popup_text, max_width=250),
+        icon=folium.Icon(color=color_map[row['price_level']], icon='exclamation-sign', prefix='glyphicon')
+    ).add_to(m)
+
+# 지도 출력
+m
