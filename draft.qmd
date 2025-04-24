@@ -65,14 +65,12 @@ df['RoomDensity'] = df['TotalRooms'] / df['GrLivArea']  # 방 밀도 (방수 / �
 
 
 ## 조건 : 기준값 상위 25% 이상
-df['GrLivArea_th'] = (df['GrLivArea'] / df.groupby('price_level')['GrLivArea'].transform(lambda x: x.quantile(0.75))
-)
-
-df['YearRemodAdd_th'] = (df['YearRemodAdd'] / df.groupby('price_level')['YearRemodAdd'].transform(lambda x: x.quantile(0.75))
-)
-
-df['RoomDensity_th'] = (df['RoomDensity'] / df.groupby('price_level')['RoomDensity'].transform(lambda x: x.quantile(0.75))
-)
+df['GrLivArea_th']    = df.groupby('price_level')['GrLivArea']   \
+                           .transform(lambda x: x.quantile(0.75))
+df['YearRemodAdd_th'] = df.groupby('price_level')['YearRemodAdd']\
+                           .transform(lambda x: x.quantile(0.75))
+df['RoomDensity_th']  = df.groupby('price_level')['RoomDensity'] \
+                           .transform(lambda x: x.quantile(0.75))
 
 # 지역들 분리하는 df 생성
 high_df = df[df['price_level'] == 'High'].copy()
@@ -83,41 +81,24 @@ low_df  = df[df['price_level'] == 'Low'].copy()
 
 #  {.sidebar}
 
-## \## [에임즈 인트로]{style="font-size: 14px;"}
+##  허위매물이란?
 
--   블라블라
+-  가격 대비 각 조건이 시장 평균을 크게 벗어난 이상치로 정의
+ 
 
-## [연속형 \> 박스플롯 / 범주형 \> 그래프, 조건별 결과 ]{style="font-size: 14px;"}
+## [탐지방법]{style="font-size: 14px;"}
 
-1.  
+1. 기준 별 점수제
 
-2.  
+2. 회귀분석
 
-3.  
-
-4.  
-
-## [회귀모델]{style="font-size: 14px;"}
-
-1.  
-
-2.  
-
-## [결론 및 보완점]{style="font-size: 14px;"}
-
-1.  
-
-2.  
-
-3.  결론
-
-4.  분석의 제한점
 
 
 # 발표 시작
 
 <div style="display: flex; gap: 10px; align-items: flex-start;">
-  <img src="imagebox/fakeroom.png" style="width: 49%;" alt="fake room 이미지">
+  <img src="imagebox/fakeroom1.png" style="width: 49%;" alt="첫 번째 이미지">
+  <img src="imagebox/fakeroom2.png" style="width: 49%;" alt="두 번째 이미지">
 </div> 
 
 
@@ -139,8 +120,9 @@ low_df  = df[df['price_level'] == 'Low'].copy()
 
 ### Column {width="50%"}
 
+::: card
 
-### Ames 도시 특징
+### [Ames 도시 특징]{style="font-size: 30px;"}
 
 -   위치: 미국 아이오와주 중부, 디모인 북쪽 약 50km
 -   인구: 약 66,000명 (2020년 기준)
@@ -150,10 +132,15 @@ low_df  = df[df['price_level'] == 'Low'].copy()
 2.  안정된 주거 환경과 활발한 임대 시장 (임대 가구 비율 약 55%)
 3.  젊은 인구 비중 높고 교육 중심 도시 (20\~34세 인구 비중 약 40%)
 
+:::
 
 ## Row {height="35%"}
 
-### Ames 위치 및 지역 분포
+### Column {width="50%"}
+
+::: card
+
+### Ames [위치 및 지역 분포]{style="font-size: 30px;"}
 
 ```{python}
 import plotly.express as px
@@ -205,6 +192,27 @@ fig_map.update_layout(
 -   Ames 지역의 평균 주택가격 기준
 -   상·중·하로 분류
 -   각 점은 개별 주택을 의미
+
+:::
+
+### Column {width="50%"}
+
+::: card
+
+### [🏘 가격 별 그룹 분류]{style="font-size: 30px;"}
+
+```{python}
+# 가격 수준별 SalePrice 분포
+import plotly.express as px
+fig = px.histogram(df, x='SalePrice', 
+                    color='price_level', 
+                    opacity=0.6)
+fig.show()
+
+```
+:::
+
+
 
 ## Row {height="20%"}
 
@@ -278,7 +286,7 @@ fig_map.update_layout(
 </div>
 
 ## Row
-:::{.card} 
+:::{.card.full-width} 
 <span style="font-size: 35px;">
 🏘 가격 별 그룹 분류
 </span>
