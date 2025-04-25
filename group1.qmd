@@ -1187,6 +1187,8 @@ fig
 :::
 
 ```{python}
+#| echo: false
+#| output: false
 
 import numpy as np
 import pandas as pd
