@@ -286,7 +286,7 @@ fig.show()
 
 # 2. 점수제 과정
 
-## Columns
+## Columns{height=10%}
 
 <div style="border: 2px solid #DC143C; border-radius: 15px; padding: 15px; background-color: #fff5f5;">
   <span style="font-size: 25px; font-weight: bold; color: #DC143C;">
@@ -296,10 +296,10 @@ fig.show()
   이후 회귀 모델을 통해 허위매물을 추출한 뒤, 공통 허위매물을 추출한다.
 
    ✔**GrLivArea** : 지상층 면적 
-  ✔**YearRemodAdd** : 리모델링 
+  ✔**YearRemodAdd** : 리모델링 또는 증축 연도
   ✔**RoomDensity** : 방 밀도 (방수/면적)
-  ✔**OverallQual** : 지상층 면적 
-  ✔**OverallCond** : 리모델링
+  ✔**OverallQual** : 전반적인 자재 및 마감 품질 (1~10)
+  ✔**OverallCond** : 집의 전반적인 상태 (1~10)
   ✔**Amenities** : 편의시설 개수
   <br><br>
 
@@ -308,7 +308,7 @@ fig.show()
 </div>
 
 
-## Row {.tabset}
+## Row {.tabset height=20%}
 
 ### [점수제 탐지]{style="font-size: 40px;"}
 
@@ -365,7 +365,7 @@ fig1.show();
 
 :::
 
-:::{.card}
+:::{.card height=40%}
 ```{python}
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -416,14 +416,14 @@ fig2.show();
 ```
 
 <span style="font-size: 25px;">
-  ✔**OverallQual** : 지상층 면적 <br>
-  ✔**OverallCond** : 리모델링 <br>
+  ✔**OverallQual** : 전반적인 자재 및 마감 품질 (1~10) <br>
+  ✔**OverallCond** : 전반적인 상태 (1~10) <br>
   ✔**Amenities** : 편의시설 개수
 </span>
 
 :::
 
-## Row
+## Row{height=30%}
 
 ```{python}
 # High 그룹
