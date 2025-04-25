@@ -231,11 +231,11 @@ fig.show()
 
 ### 지역별 주택 가격 구간 분류
 
-| 가격 구간 | 평균 가격  (USD) | 주요 지역 |
+| 가격 구간 | 기준(분위수) | 주요 지역 |
 |----|----|----|
-| 🔺 **고가 지역 (High)** | ≥ 217,676 | NoRidge, NridgHt, StoneBr, Veenker, Greens, Timber |
-| ⚖️ **중간 지역 (Mid)** | 136,144 \~ 217,675 | CollgCr, Mitchel, NAmes, SawyerW, OldTown, Crawfor, Edwards |
-| 🔻 **저가 지역 (Low)** | ≤ 136,143 | MeadowV, BrDale, IDOTRR, Landmrk, Blueste |
+| 🔺 **고가 지역 (High)** | 상위 25% (≥ 75th percentile) | NoRidge, NridgHt, StoneBr, Veenker, Greens, Timber |
+| ⚖️ **중간 지역 (Mid)** | 중간 50% (25th~75th percentile) | CollgCr, Mitchel, NAmes, SawyerW, OldTown, Crawfor, Edwards |
+| 🔻 **저가 지역 (Low)** | 하위 25% (≤ 25th percentile) | MeadowV, BrDale, IDOTRR, Landmrk, Blueste |
 
 > -   `Neighborhood`별 평균 `SalePrice`를 기준으로 분위수(Quantile)를 계산하여 고가/중간/저가로 분류함\
 > -   상위 25% 이상: 고가 지역, 중위 50%: 중간 지역, 하위 25% 이하: 저가 지역
