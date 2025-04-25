@@ -231,7 +231,7 @@ fig.show()
 
 ### 지역별 주택 가격 구간 분류
 
-| 가격 구간 | 평균 가격 범위 (USD) | 주요 지역 |
+| 가격 구간 | 평균 가격  (USD) | 주요 지역 |
 |----|----|----|
 | 🔺 **고가 지역 (High)** | ≥ 217,676 | NoRidge, NridgHt, StoneBr, Veenker, Greens, Timber |
 | ⚖️ **중간 지역 (Mid)** | 136,144 \~ 217,675 | CollgCr, Mitchel, NAmes, SawyerW, OldTown, Crawfor, Edwards |
@@ -733,7 +733,7 @@ df_lvl['ridge_flag'] = df_lvl['residual'] <= thresh
 r2    = r2_score(y, ridge.predict(X))
 alpha = ridge.alpha_
 print(f"설명력 (R²): {r2:.3f}")
-print(f"최적 α (alpha): {alpha:.3g}/n")
+print(f"최적 α (alpha): {alpha:.3g}\n")
 
 
 import plotly.express as px
@@ -815,7 +815,7 @@ pct     = count/total*100
 
 # 4) 결과 출력
 print(f"▶ 전체 샘플 수: {total}개")
-print(f"▶ 허위매물 수: {count}개 ({pct:.1f}%)/n")
+print(f"▶ 허위매물 수: {count}개 ({pct:.1f}%)\n")
 ```
 
 #### 허위매물 목록 (정렬 기준 : residual)
@@ -891,7 +891,7 @@ df_lvl['ridge_flag'] = df_lvl['residual'] <= thresh
 r2    = r2_score(y, ridge.predict(X))
 alpha = ridge.alpha_
 print(f"설명력 (R²): {r2:.3f}")
-print(f"최적 α (alpha): {alpha:.3g}/n")
+print(f"최적 α (alpha): {alpha:.3g}\n")
 
 
 
@@ -974,7 +974,7 @@ pct     = count/total*100
 
 # 4) 결과 출력
 print(f"▶ 전체 샘플 수: {total}개")
-print(f"▶ 허위매물 수: {count}개 ({pct:.1f}%)/n")
+print(f"▶ 허위매물 수: {count}개 ({pct:.1f}%)\n")
 
 ```
 
@@ -1051,7 +1051,7 @@ df_lvl['ridge_flag'] = df_lvl['residual'] <= thresh
 r2    = r2_score(y, ridge.predict(X))
 alpha = ridge.alpha_
 print(f"설명력 (R²): {r2:.3f}")
-print(f"최적 α (alpha): {alpha:.3g}/n")
+print(f"최적 α (alpha): {alpha:.3g}\n")
 
 
 import plotly.express as px
@@ -1133,7 +1133,7 @@ pct     = count/total*100
 
 # 4) 결과 출력
 print(f"▶ 전체 샘플 수: {total}개")
-print(f"▶ 허위매물 수: {count}개 ({pct:.1f}%)/n")
+print(f"▶ 허위매물 수: {count}개 ({pct:.1f}%)\n")
 
 ```
 
@@ -1183,6 +1183,7 @@ fig = px.scatter_mapbox(
 
 fig
 ```
+
 :::
 
 ```{python}
@@ -1247,24 +1248,12 @@ for level in ['Low', 'Mid', 'High']:
     thresh = df_lvl['residual'].quantile(72/2579) # 우리가 전체 대비 점수제로 뽑은 매물후보 수의비율로 확인 
     df_lvl['ridge_flag'] = df_lvl['residual'] <= thresh
     
-    # 7) 인터랙티브 산점도
-    fig = px.scatter(
-        df_lvl,
-        x='SalePrice',
-        y='predicted',
-        color='ridge_flag',
-        color_discrete_map={True: 'red', False: 'lightgray'},
-        title=f'Actual vs. Predicted ({level}) - Ridge Regression',
-        labels={'SalePrice':'실제가격','predicted':'예측가격','ridge_flag':'허위매물 의심'},
-        opacity=0.7
-    )
 
 # (1) 사용할 피처·타겟 재확인
 features = ['OverallQual', 'OverallCond', 'GrLivArea', 'YearRemodAdd', 'RoomDensity', 'amenities']
 target   = 'SalePrice'
 
 # (2) 플래그 컬럼 초기화
-df['elastic_flag'] = False
 df['ridge_flag']   = False
 
 # (3) RidgeCV로 전체 데이터에 대해 플래그 계산
